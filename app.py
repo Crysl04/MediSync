@@ -5,20 +5,16 @@ import psycopg2
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
+DATABASE_URL = os.environ.get('DATABASE_URL')
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here' 
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key')
 
 
 def init_db():
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         c.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -78,13 +74,8 @@ def login_required(f):
 
 def log_activity(username, activity):
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             INSERT INTO user_activity (username, activity)
@@ -99,13 +90,8 @@ def log_activity(username, activity):
 
 def update_expiry_status():
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         # Expired: expiration_date < today
@@ -143,13 +129,8 @@ def update_expiry_status():
 
 def update_expiry_notifications():
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         c.execute("""
@@ -192,13 +173,8 @@ def auth():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             SELECT id, username, password, full_name, role
@@ -244,13 +220,8 @@ def dashboard():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         
         # Get total stocks (sum of quantity of active products)
@@ -369,13 +340,8 @@ def products():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             SELECT p.id, p.product_name, p.product_type, p.stock_quantity, 
@@ -409,13 +375,8 @@ def purchases():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
     SELECT 
@@ -454,13 +415,8 @@ def orders():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
     SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, o.order_date, o.customer
@@ -490,13 +446,8 @@ def notification():
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             SELECT id, message, created_at, is_read, type
@@ -519,13 +470,8 @@ def notification():
 def add_product():
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         
         # Get form data
@@ -565,13 +511,8 @@ def edit_product(product_id):
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             UPDATE Product
@@ -599,13 +540,8 @@ def edit_product(product_id):
 def delete_product(product_id):
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         # Either delete or mark inactive
         c.execute("DELETE FROM Product WHERE id = %s", (product_id,))
@@ -626,13 +562,8 @@ def delete_product(product_id):
 def add_purchase():
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         product_id = request.form['product_id']
@@ -668,13 +599,8 @@ def edit_purchase(purchase_id):
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         c.execute("SELECT batch_number FROM Purchase WHERE id = %s", (purchase_id,))
@@ -710,13 +636,8 @@ def edit_purchase(purchase_id):
 def delete_purchase(purchase_id):
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("SELECT product_id, batch_number FROM Purchase WHERE id = %s", (purchase_id,))
         result = c.fetchone()
@@ -758,13 +679,8 @@ def add_order():
         return jsonify({'success': False, 'message': 'Invalid input'}), 400
 
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             INSERT INTO "Order" (product_id, order_quantity, batch_number, customer)
@@ -794,13 +710,8 @@ def edit_order(order_id):
 
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
         # Get old order info
@@ -850,13 +761,8 @@ def edit_order(order_id):
 def delete_order(order_id):
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         # Get order details
         c.execute('SELECT product_id, batch_number, order_quantity FROM "Order" WHERE order_id=%s', (order_id,))
@@ -888,13 +794,8 @@ def delete_order(order_id):
 
 
 def get_notifications(limit=10):
-    conn = psycopg2.connect(
-        dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-    )
+    conn = psycopg2.connect(DATABASE_URL)
+
     c = conn.cursor()
     c.execute("SELECT id, message, created_at, is_read FROM Notification ORDER BY created_at DESC LIMIT %s", (limit,))
     notifications = c.fetchall()
@@ -911,13 +812,8 @@ def notification_json():
     update_expiry_notifications()
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         # Only return notifications that are not ignored
         c.execute("""
@@ -947,13 +843,8 @@ def notification_json():
 @app.route('/touch-notification/<int:notif_id>', methods=['POST'])
 @login_required
 def touch_notification(notif_id):
-    conn = psycopg2.connect(
-        dbname="MEDISYNC_DB",
-        user="postgres",
-        password="Chryscelle1!",
-        host="localhost",
-        port=1234
-    )
+    conn = psycopg2.connect(DATABASE_URL)
+
     c = conn.cursor()
     c.execute("""
         UPDATE notification
@@ -970,13 +861,8 @@ def touch_notification(notif_id):
 def ignore_notification(notif_id):
     conn = None
     try:
-        conn = psycopg2.connect(
-            dbname="MEDISYNC_DB",
-            user="postgres",
-            password="Chryscelle1!",
-            host="localhost",
-            port=1234
-        )
+        conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
         c.execute("""
             UPDATE notification
@@ -995,13 +881,8 @@ def ignore_notification(notif_id):
 @app.route('/read-notification/<int:notif_id>', methods=['POST'])
 @login_required
 def read_notification(notif_id):
-    conn = psycopg2.connect(
-        dbname="MEDISYNC_DB",
-        user="postgres",
-        password="Chryscelle1!",
-        host="localhost",
-        port=1234
-    )
+    conn = psycopg2.connect(DATABASE_URL)
+
     c = conn.cursor()
     c.execute("""
         UPDATE notification
