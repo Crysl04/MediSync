@@ -5,6 +5,8 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+print("DATABASE_URL:", DATABASE_URL)
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key')
 
@@ -196,7 +198,10 @@ def auth():
             return render_template('index.html', error="Invalid login, please try again.", username=username)
 
     except Exception as e:
-        return render_template('index.html', error="Login error, please try again.", username=username)
+       except Exception as e:
+        print(f"Login exception: {str(e)}")  # <-- Debug line
+        return render_template('index.html', error=f"Login error: {str(e)}", username=username)
+
     finally:
         if conn:
             conn.close()
