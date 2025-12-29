@@ -573,13 +573,13 @@ def add_purchase():
         product_id = request.form['product_id']
         purchase_quantity = int(request.form['purchase_quantity'])
         expiration_date = request.form['expiration_date']
-        supplier = request.form['supplier']
+        supplier_id = request.form['supplier_id']
 
         c.execute("""
             INSERT INTO Purchase 
-            (product_id, purchase_quantity, remaining_quantity, expiration_date, supplier)
+            (product_id, purchase_quantity, remaining_quantity, expiration_date, supplier_id)
             VALUES (%s, %s, %s, %s, %s)
-        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, supplier))
+        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, supplier_id))
 
         conn.commit()
         log_activity(session['username'], f"Added stock-in: product_id {product_id}, qty {purchase_quantity}, expiration {expiration_date}")
