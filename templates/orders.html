@@ -54,7 +54,7 @@
         {% if orders %}
           {% for order in orders %}
             <tr data-order-id="{{ order[0] }}" 
-                data-invoice="{{ order[6] }}"  <!-- invoice_number -->
+                data-invoice="{{ order[6] }}"
                 data-quantity="{{ order[2] }}" 
                 data-date="{{ order[4] }}" 
                 data-customer="{{ order[5] }}">
@@ -571,6 +571,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
