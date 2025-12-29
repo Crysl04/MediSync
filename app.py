@@ -459,7 +459,7 @@ def orders():
         """)
         orders = c.fetchall()
         
-        # Get invoice data with product details
+        # Get invoice data with product details for dropdown
         c.execute("""
             SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
             FROM purchase pu
@@ -470,6 +470,9 @@ def orders():
         """)
         invoice_data = c.fetchall()
         
+        # Create a list of just invoice numbers for compatibility if needed
+        invoice_numbers = [row[0] for row in invoice_data]
+        
         # Your specific customer list
         customers = [
             "LGU-Sibagat, ADS", "DOPMH, Patin-ay, ADS", "LGU-Patin-ay, ADS",
@@ -478,11 +481,15 @@ def orders():
         ]
         customers.sort()
         
-        return render_template('orders.html', orders=orders, invoice_data=invoice_data, customers=customers)
+        return render_template('orders.html', 
+                             orders=orders, 
+                             invoice_data=invoice_data,
+                             invoice_numbers=invoice_numbers,  # For compatibility
+                             customers=customers)
     except Exception as e:
         print(f"Error in orders route: {str(e)}")
         flash(f'Error loading orders: {str(e)}', 'error')
-        return render_template('orders.html', orders=[], invoice_data=[], customers=[])
+        return render_template('orders.html', orders=[], invoice_data=[], invoice_numbers=[], customers=[])
     finally:
         if conn is not None:
             conn.close()
