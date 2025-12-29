@@ -72,8 +72,10 @@
         <tr>
           <th><button class="sort-btn" data-sort="code">Item Code</button></th>
           <th><button class="sort-btn" data-sort="name">Item Name</button></th>
+          <th>Dosage</th>
           <th><button class="sort-btn" data-sort="type">Type</button></th>
           <th><button class="sort-btn" data-sort="category">Category</button></th>
+          <th>Unit</th>
           <th><button class="sort-btn" data-sort="quantity">Stock Quantity</button></th>
           <th><button class="sort-btn" data-sort="status">Stock Status</button></th>
           <th>Action</th>
@@ -85,13 +87,15 @@
         <tr>
           <td>{{ product[0] }}</td>
           <td>{{ product[1] }}</td>
-          <td>{{ product[2] }}</td>
-          <td>{{ product[4] }}</td>
-          <td>{{ product[3] }}</td>
+          <td>{{ product[2] if product[2] else '' }}</td> <!-- Dosage -->
+          <td>{{ product[3] }}</td> <!-- Type -->
+          <td>{{ product[4] }}</td> <!-- Category -->
+          <td>{{ product[5] if product[5] else '' }}</td> <!-- Unit -->
+          <td>{{ product[6] }}</td> <!-- Stock Quantity -->
           <td>
-            {% if product[5] == 'in stock' %}
+            {% if product[7] == 'in stock' %}
               <span class="status in">✅ In stock</span>
-            {% elif product[5] == 'low stock' %}
+            {% elif product[7] == 'low stock' %}
               <span class="status low">⚠️ Low stock</span>
             {% else %}
               <span class="status out">🔴 Out of stock</span>
@@ -105,7 +109,7 @@
         {% endfor %}
         {% else %}
         <tr>
-          <td colspan="7" style="text-align: center;">No products found</td>
+          <td colspan="9" style="text-align: center;">No products found</td>
         </tr>
         {% endif %}
       </tbody>
@@ -364,4 +368,5 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
+
 
