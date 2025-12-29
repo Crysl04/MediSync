@@ -97,14 +97,14 @@ def update_expiry_status():
 
         # Expired: expiration_date < today
         c.execute("""
-            UPDATE Purchase
+            UPDATE 
             SET status = 'expired'
             WHERE expiration_date <= CURRENT_DATE
         """)
 
         # Near expiry: expires within 7 days
         c.execute("""
-            UPDATE Purchase
+            UPDATE 
             SET status = 'near expiry'
             WHERE expiration_date > CURRENT_DATE
               AND expiration_date <= CURRENT_DATE + INTERVAL '7 days'
@@ -113,7 +113,7 @@ def update_expiry_status():
 
         # In stock: expires later
         c.execute("""
-            UPDATE Purchase
+            UPDATE 
             SET status = 'in stock'
             WHERE expiration_date > CURRENT_DATE + INTERVAL '7 days'
               AND status NOT IN ('expired', 'near expiry')
@@ -137,7 +137,7 @@ def update_expiry_notifications():
         c.execute("""
             UPDATE notification n
             SET ignored = TRUE
-            FROM purchase pu
+            FROM  pu
             WHERE n.ignored = FALSE
                 AND n.product_id = pu.product_id
                 AND n.batch_id = pu.batch_number
@@ -600,6 +600,7 @@ def edit_purchase(purchase_id):
     product_id = request.form['product_id']
     new_purchase_quantity = int(request.form['purchase_quantity'])
     expiration_date = request.form['expiration_date']
+    supplier_id = request.form['supplier_id']
 
     conn = None
     try:
@@ -618,7 +619,7 @@ def edit_purchase(purchase_id):
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
         c.execute("""UPDATE Purchase
-                     SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, expiration_date=%s
+                     SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, expiration_date=%s, supplier_id=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, expiration_date, purchase_id))
         conn.commit()
