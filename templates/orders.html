@@ -41,6 +41,7 @@
     <table id="ordersTable">
       <thead>
         <tr>
+          <th>Invoice Number</th>
           <th>Delivery Date</th>
           <th>Customer</th>
           <th>Product Name</th>
@@ -51,25 +52,25 @@
       <tbody>
         {% if orders %}
           {% for order in orders %}
-<tr data-order-id="{{ order[0] }}" 
-    data-product-id="{{ order[1] }}" 
-    data-batch="{{ order[3] }}" 
-    data-quantity="{{ order[2] }}" 
-    data-date="{{ order[4] }}" 
-    data-customer="{{ order[5] }}">
-              <td>{{ order[4] }}</td>
-              <td>{{ order[5] }}</td>
-              <td>{{ order[1] }}</td>
-              <td>{{ order[2] }}</td>
+            <tr data-order-id="{{ order[0] }}" 
+                data-invoice="{{ order[6] }}"  <!-- invoice_number -->
+                data-quantity="{{ order[2] }}" 
+                data-date="{{ order[4] }}" 
+                data-customer="{{ order[5] }}">
+              <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
+              <td>{{ order[4] }}</td> <!-- Order Date -->
+              <td>{{ order[5] }}</td> <!-- Customer -->
+              <td>{{ order[1] }}</td> <!-- Product Name -->
+              <td>{{ order[2] }}</td> <!-- Quantity -->
               <td>
-                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[3] }}', '{{ order[2] }}', '{{ order[5] }}')">Edit</button>
+                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}')">Edit</button>
                 <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
               </td>
             </tr>
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="7" style="text-align: center;">No orders found</td>
+            <td colspan="6" style="text-align: center;">No orders found</td>
           </tr>
         {% endif %}
       </tbody>
@@ -96,21 +97,23 @@
 </style>
 
 <!-- Add Order Modal -->
-<!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2>Add Order</h2>
     <form id="addOrderForm" method="POST">
-      <label>Product:</label><br>
-      <select name="product_id" id="addProductId" required>
-        <option value="">Select Product</option>
-        {% for prod in products %}
-          <option value="{{ prod[0] }}">{{ prod[1] }}</option>
+      <label>Invoice Number:</label><br>
+      <select name="invoice_number" id="addInvoiceNumber" required onchange="updateProductInfo()">
+        <option value="">Select Invoice Number</option>
+        {% for inv in invoice_numbers %}
+          <option value="{{ inv }}">{{ inv }}</option>
         {% endfor %}
       </select><br><br>
 
-      <label>Batch Number:</label><br>
-      <input type="text" name="batch_number" id="addBatchNumber" required><br><br>
+      <label>Product:</label><br>
+      <input type="text" id="addProductInfo" readonly><br><br>
+
+      <label>Available Quantity:</label><br>
+      <input type="text" id="addAvailableQty" readonly><br><br>
 
       <label>Order Quantity:</label><br>
       <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
@@ -137,23 +140,25 @@
 </div>
 
 <!-- Edit Order Modal -->
-<!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2>Edit Order</h2>
     <form id="editOrderForm" method="POST">
       <input type="hidden" name="order_id" id="editOrderId">
 
-      <label>Product:</label><br>
-      <select name="product_id" id="editProductId" required>
-        <option value="">Select Product</option>
-        {% for prod in products %}
-          <option value="{{ prod[0] }}">{{ prod[1] }}</option>
+      <label>Invoice Number:</label><br>
+      <select name="invoice_number" id="editInvoiceNumber" required onchange="updateEditProductInfo()">
+        <option value="">Select Invoice Number</option>
+        {% for inv in invoice_numbers %}
+          <option value="{{ inv }}">{{ inv }}</option>
         {% endfor %}
       </select><br><br>
 
-      <label>Batch Number:</label><br>
-      <input type="text" name="batch_number" id="editBatchNumber" required><br><br>
+      <label>Product:</label><br>
+      <input type="text" id="editProductInfo" readonly><br><br>
+
+      <label>Available Quantity:</label><br>
+      <input type="text" id="editAvailableQty" readonly><br><br>
 
       <label>Order Quantity:</label><br>
       <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
@@ -396,6 +401,162 @@ document.getElementById('editOrderForm').addEventListener('submit', function(e) 
   });
 });
 
+// Add new function to fetch product info when invoice is selected
+function updateProductInfo() {
+  const invoiceNumber = document.getElementById('addInvoiceNumber').value;
+  if (!invoiceNumber) {
+    document.getElementById('addProductInfo').value = '';
+    document.getElementById('addAvailableQty').value = '';
+    return;
+  }
+  
+  fetch(`/get-purchase-info/${invoiceNumber}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('addProductInfo').value = data.product_name;
+        document.getElementById('addAvailableQty').value = data.remaining_quantity;
+      } else {
+        alert(data.message);
+        document.getElementById('addProductInfo').value = '';
+        document.getElementById('addAvailableQty').value = '';
+      }
+    })
+    .catch(err => {
+      console.error('Error:', err);
+      document.getElementById('addProductInfo').value = '';
+      document.getElementById('addAvailableQty').value = '';
+    });
+}
+
+function updateEditProductInfo() {
+  const invoiceNumber = document.getElementById('editInvoiceNumber').value;
+  if (!invoiceNumber) {
+    document.getElementById('editProductInfo').value = '';
+    document.getElementById('editAvailableQty').value = '';
+    return;
+  }
+  
+  fetch(`/get-purchase-info/${invoiceNumber}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('editProductInfo').value = data.product_name;
+        document.getElementById('editAvailableQty').value = data.remaining_quantity;
+      } else {
+        alert(data.message);
+        document.getElementById('editProductInfo').value = '';
+        document.getElementById('editAvailableQty').value = '';
+      }
+    })
+    .catch(err => {
+      console.error('Error:', err);
+      document.getElementById('editProductInfo').value = '';
+      document.getElementById('editAvailableQty').value = '';
+    });
+}
+
+// Update the openEditOrderModal function
+function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer) {
+  document.getElementById('editOrderId').value = orderId;
+  document.getElementById('editInvoiceNumber').value = invoiceNumber;
+  document.getElementById('editOrderQuantity').value = quantity;
+  document.getElementById('editProductInfo').value = productName;
+  
+  // Set customer dropdown
+  const customerSelect = document.getElementById('editCustomer');
+  const otherGroup = document.getElementById('editOtherCustomerGroup');
+  const otherInput = document.getElementById('editOtherCustomerInput');
+  
+  // Try to find the customer in the options
+  let found = false;
+  for (let option of customerSelect.options) {
+    if (option.textContent === customer) {
+      customerSelect.value = option.value;
+      found = true;
+      otherGroup.style.display = 'none';
+      break;
+    }
+  }
+  
+  // If customer not found in the list, show "Other" input
+  if (!found) {
+    customerSelect.value = '__other__';
+    otherGroup.style.display = 'block';
+    otherInput.value = customer;
+  }
+  
+  // Fetch available quantity for the selected invoice
+  updateEditProductInfo();
+  
+  document.getElementById('editOrderModal').style.display = 'block';
+}
+
+// Update form submissions to use invoice_number
+document.getElementById('addOrderForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const invoiceNumber = document.getElementById('addInvoiceNumber').value;
+  const quantity = parseInt(document.getElementById('addOrderQuantity').value);
+  const customer = document.getElementById('addCustomer').value;
+
+  if(!invoiceNumber || isNaN(quantity) || !customer) {
+    alert('Please fill all fields correctly.');
+    return;
+  }
+
+  fetch('/add-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoice_number: invoiceNumber, order_quantity: quantity, customer: customer })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message);
+    if(data.success) location.reload();
+  })
+  .catch(err => alert('Error: ' + err));
+});
+
+document.getElementById('editOrderForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const orderId = document.getElementById('editOrderId').value;
+  const invoiceNumber = document.getElementById('editInvoiceNumber').value;
+  const quantity = document.getElementById('editOrderQuantity').value;
+  const customer = document.getElementById('editCustomer').value;
+
+  fetch(`/edit-order/${orderId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoice_number: invoiceNumber, order_quantity: quantity, customer: customer })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message);
+    if(data.success) location.reload();
+  })
+  .catch(err => alert('Error: ' + err));
+});
+
+// Update filter function to include invoice number
+function applyOrderFilters() {
+  const searchValue = document.getElementById("searchOrders").value.toLowerCase();
+  const invoiceValue = document.getElementById("invoiceFilter") ? document.getElementById("invoiceFilter").value.toLowerCase() : '';
+  const dateValue = document.getElementById("dateFilter").value;
+
+  const rows = document.querySelectorAll("#ordersTable tbody tr");
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase();
+    const rowDate = row.getAttribute("data-date");
+
+    const matchesSearch = text.includes(searchValue);
+    const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
+    const matchesDate = dateValue === "" || rowDate === dateValue;
+
+    row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
+  });
+}
+
 // Delete order
 function deleteOrder(orderId) {
   if(confirm('Are you sure you want to delete this order?')) {
@@ -409,4 +570,5 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
