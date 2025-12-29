@@ -254,8 +254,6 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
   document.getElementById('editInvoiceNumber').value = invoiceNumber;
   document.getElementById('editOrderQuantity').value = quantity;
   document.getElementById('editProductInfo').value = productName;
-  document.getElementById('editDosageInfo').value = dosage || '';
-  document.getElementById('editUnitInfo').value = unit || '';
   
   // Set customer dropdown
   const customerSelect = document.getElementById('editCustomer');
@@ -309,21 +307,15 @@ function updateProductInfo() {
   
   if (!selectedOption.value) {
     document.getElementById('addProductInfo').value = '';
-    document.getElementById('addDosageInfo').value = '';
-    document.getElementById('addUnitInfo').value = '';
     document.getElementById('addAvailableQty').value = '';
     return;
   }
   
   const invoiceNumber = selectedOption.value;
   const productName = selectedOption.getAttribute('data-product');
-  const dosage = selectedOption.getAttribute('data-dosage');
-  const unit = selectedOption.getAttribute('data-unit');
   
-  // Set the product info fields
+  // Set the product info field (only this exists)
   document.getElementById('addProductInfo').value = productName;
-  document.getElementById('addDosageInfo').value = dosage || '';
-  document.getElementById('addUnitInfo').value = unit || '';
   
   // Fetch available quantity
   fetch(`/get-purchase-info/${invoiceNumber}`)
@@ -339,6 +331,40 @@ function updateProductInfo() {
     .catch(err => {
       console.error('Error:', err);
       document.getElementById('addAvailableQty').value = '';
+    });
+}
+
+// Update product info when invoice is selected (for edit order)
+function updateEditProductInfo() {
+  const invoiceSelect = document.getElementById('editInvoiceNumber');
+  const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
+  
+  if (!selectedOption.value) {
+    document.getElementById('editProductInfo').value = '';
+    document.getElementById('editAvailableQty').value = '';
+    return;
+  }
+  
+  const invoiceNumber = selectedOption.value;
+  const productName = selectedOption.getAttribute('data-product');
+  
+  // Set the product info field (only this exists)
+  document.getElementById('editProductInfo').value = productName;
+  
+  // Fetch available quantity
+  fetch(`/get-purchase-info/${invoiceNumber}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('editAvailableQty').value = data.remaining_quantity;
+      } else {
+        alert(data.message);
+        document.getElementById('editAvailableQty').value = '';
+      }
+    })
+    .catch(err => {
+      console.error('Error:', err);
+      document.getElementById('editAvailableQty').value = '';
     });
 }
 
@@ -515,6 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
 
 
