@@ -1,3 +1,4 @@
+
 {% extends 'layout.html' %}
 {% block title %}MediSync - Products{% endblock %}
 
@@ -67,13 +68,10 @@
 
   <div class="products-table">
     <table id="productsTable">
-      <!-- products.html - Table Section -->
       <thead>
         <tr>
           <th><button class="sort-btn" data-sort="code">Item Code</button></th>
           <th><button class="sort-btn" data-sort="name">Item Name</button></th>
-          <th>Dosage</th>
-          <th>Unit</th>
           <th><button class="sort-btn" data-sort="type">Type</button></th>
           <th><button class="sort-btn" data-sort="category">Category</button></th>
           <th><button class="sort-btn" data-sort="quantity">Stock Quantity</button></th>
@@ -87,8 +85,6 @@
         <tr>
           <td>{{ product[0] }}</td>
           <td>{{ product[1] }}</td>
-          <td>{{ product[6] if product[6] else '' }}</td> <!-- Dosage -->
-          <td>{{ product[7] if product[7] else '' }}</td> <!-- Unit Name -->
           <td>{{ product[2] }}</td>
           <td>{{ product[4] }}</td>
           <td>{{ product[3] }}</td>
@@ -109,7 +105,7 @@
         {% endfor %}
         {% else %}
         <tr>
-          <td colspan="9" style="text-align: center;">No products found</td>
+          <td colspan="7" style="text-align: center;">No products found</td>
         </tr>
         {% endif %}
       </tbody>
@@ -117,32 +113,18 @@
   </div>
 </main>
 
-<!-- products.html - Modal Form Section -->
 <div id="productModal" class="modal" style="display:none;">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2 id="modalTitle">Add Product</h2>
     <form id="productForm" method="POST" action="/add-product">
       <label>Product Name:</label><br>
       <input type="text" name="product_name" required><br><br>
-      
-      <label>Dosage:</label><br>
-      <input type="text" name="dosage" placeholder="e.g., 500mg"><br><br>
-      
-      <label>Unit:</label><br>
-      <select name="unit_id" required>
-        <option value="">Select Unit</option>
-        {% for unit in units %}
-          <option value="{{ unit[0] }}">{{ unit[1] }}</option>
-        {% endfor %}
-      </select><br><br>
-      
       <label>Product Type:</label><br>
       <select name="product_type" required>
         <option value="">Select Type</option>
         <option value="medicine">Medicine</option>
         <option value="supply">Supplies</option>
       </select><br><br>
-      
       <label>Category:</label><br>
       <select name="category_id" required>
         <option value="">Select Category</option>
@@ -150,7 +132,6 @@
           <option value="{{ cat[0] }}">{{ cat[1] }}</option>
         {% endfor %}
       </select><br><br>
-      
       <div style="text-align:right;">
         <button type="button" onclick="closeProductModal()">Cancel</button>
         <button type="submit" id="modalSubmit">Add</button>
@@ -368,4 +349,3 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
-
