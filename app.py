@@ -446,25 +446,41 @@ def orders():
 
         c = conn.cursor()
         c.execute("""
-    SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, o.order_date, o.customer
-    FROM "Order" o
-    LEFT JOIN Product p ON o.product_id = p.id
-    ORDER BY o.order_date DESC
-""")
-
+            SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, o.order_date, o.customer
+            FROM "Order" o
+            LEFT JOIN Product p ON o.product_id = p.id
+            ORDER BY o.order_date DESC
+        """)
         orders = c.fetchall()
+        
         c.execute("SELECT id, product_name FROM Product ORDER BY product_name ASC")
         products = c.fetchall()
+        
+        # Your specific customer list
+        customers = [
+            "LGU-Sibagat, ADS",
+            "DOPMH, Patin-ay, ADS",
+            "LGU-Patin-ay, ADS",
+            "LGU-Esperanza, ADS",
+            "LGU-Prosperidad, ADS",
+            "LGU-Talacogon, ADS",
+            "LGU-Sta. Josefa, ADS",
+            "LGU-Veruela, ADS",
+            "CITY Govt. of Butuan"
+        ]
+        
+        # Sort the customers alphabetically for better UX
+        customers.sort()
+        
         print("Orders fetched:", orders)
-        return render_template('orders.html', orders=orders, products=products)
+        return render_template('orders.html', orders=orders, products=products, customers=customers)
     except Exception as e:
         print(f"Error in orders route: {str(e)}")
         flash(f'Error loading orders: {str(e)}', 'error')
-        return render_template('orders.html', orders=[], products=[])
+        return render_template('orders.html', orders=[], products=[], customers=[])
     finally:
         if conn is not None:
             conn.close()
-
 @app.route('/notification')
 @login_required
 def notification():
