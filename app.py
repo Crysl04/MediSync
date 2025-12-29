@@ -415,7 +415,10 @@ def purchases():
             "Zuellig Pharma Corp.",
             "Natra Pharma",
             "Euro-Med Laboratories",
-            "Endure Medical Inc"
+            "Endure Medical Inc",
+            "Codysure Medical Supply",
+            "Berovan Marketing Inc.",
+            "MCTC"
         ]
         
         # Sort the suppliers alphabetically for better UX
