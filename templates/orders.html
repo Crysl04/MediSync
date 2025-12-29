@@ -41,44 +41,44 @@
   <div class="orders-table">
     <table id="ordersTable">
       <thead>
-  <tr>
-    <th>Invoice Number</th>
-    <th>Delivery Date</th>
-    <th>Customer</th>
-    <th>Product Name</th>
-    <th>Dosage</th>
-    <th>Quantity</th>
-    <th>Unit</th>
-    <th>Actions</th>
-  </tr>
-</thead>
-<tbody>
-  {% if orders %}
-    {% for order in orders %}
-      <tr data-order-id="{{ order[0] }}" 
-          data-invoice="{{ order[6] }}"
-          data-quantity="{{ order[2] }}" 
-          data-date="{{ order[4] }}" 
-          data-customer="{{ order[5] }}">
-        <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
-        <td>{{ order[4] }}</td> <!-- Order Date -->
-        <td>{{ order[5] }}</td> <!-- Customer -->
-        <td>{{ order[1] }}</td> <!-- Product Name -->
-        <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
-        <td>{{ order[2] }}</td> <!-- Quantity -->
-        <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
-        <td>
-          <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}')">Edit</button>
-          <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
-        </td>
-      </tr>
-    {% endfor %}
-  {% else %}
-    <tr>
-      <td colspan="8" style="text-align: center;">No orders found</td>
-    </tr>
-  {% endif %}
-</tbody>
+        <tr>
+          <th>Invoice Number</th>
+          <th>Delivery Date</th>
+          <th>Customer</th>
+          <th>Product Name</th>
+          <th>Dosage</th>
+          <th>Quantity</th>
+          <th>Unit</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if orders %}
+          {% for order in orders %}
+            <tr data-order-id="{{ order[0] }}" 
+                data-invoice="{{ order[6] }}"
+                data-quantity="{{ order[2] }}" 
+                data-date="{{ order[4] }}" 
+                data-customer="{{ order[5] }}">
+              <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
+              <td>{{ order[4] }}</td> <!-- Order Date -->
+              <td>{{ order[5] }}</td> <!-- Customer -->
+              <td>{{ order[1] }}</td> <!-- Product Name -->
+              <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
+              <td>{{ order[2] }}</td> <!-- Quantity -->
+              <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
+              <td>
+                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}')">Edit</button>
+                <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center;">No orders found</td>
+          </tr>
+        {% endif %}
+      </tbody>
     </table>
   </div>
 </div>
@@ -636,6 +636,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
