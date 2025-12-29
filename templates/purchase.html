@@ -280,8 +280,6 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     form.reset();
     document.getElementById("modalTitle").textContent = "Add Purchase";
     document.getElementById("modalSubmit").textContent = "Add";
-    document.getElementById('purchaseDosage').value = '';
-    document.getElementById('purchaseUnit').value = '';
   }
 }
 
@@ -316,7 +314,7 @@ function editPurchase(id) {
   document.getElementById("modalTitle").textContent = "Edit Purchase";
   document.getElementById("modalSubmit").textContent = "Update";
 
-  // Populate form fields
+  // Populate form fields - FIXED: Only set fields that actually exist
   form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
   
   const productSelect = form.product_id;
@@ -329,10 +327,6 @@ function editPurchase(id) {
   
   form.purchase_quantity.value = quantity;
   form.expiration_date.value = expiry;
-  
-  // Set dosage and unit
-  document.getElementById('purchaseDosage').value = dosage || '';
-  document.getElementById('purchaseUnit').value = unit || '';
   
   // Set supplier dropdown
   const supplierSelect = form.supplier;
@@ -360,12 +354,7 @@ function updatePurchaseProductInfo() {
   if (selectedOption.value) {
     const dosage = selectedOption.getAttribute('data-dosage');
     const unit = selectedOption.getAttribute('data-unit');
-    
-    document.getElementById('purchaseDosage').value = dosage || '';
-    document.getElementById('purchaseUnit').value = unit || '';
   } else {
-    document.getElementById('purchaseDosage').value = '';
-    document.getElementById('purchaseUnit').value = '';
   }
 }
 
@@ -460,6 +449,7 @@ function toggleOtherSupplier() {
 </script>
 
 {% endblock %}
+
 
 
 
