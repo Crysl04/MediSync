@@ -97,7 +97,7 @@
     <h2 id="modalTitle">Add Purchase</h2>
     <form id="purchaseForm" method="POST" action="/add-purchase">
       <label>Product:</label><br>
-      <select name="product_id" required>
+      <select name="product_id" id="productSelect" required>
         <option value="">Select Product</option>
         {% for prod in products %}
           <option value="{{ prod[0] }}">{{ prod[1] }}</option>
@@ -108,7 +108,17 @@
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
       <label>Supplier:</label><br>
-      <input type="text" name="supplier" required><br><br>
+      <select name="supplier" id="supplierSelect" onchange="toggleOtherSupplier()" required>
+        <option value="">Select Supplier</option>
+        {% for supplier in suppliers %}
+          <option value="{{ supplier }}">{{ supplier }}</option>
+        {% endfor %}
+        <option value="__other__">Other (enter below)</option>
+      </select>
+      <div id="otherSupplierGroup" style="display:none; margin-top:5px;">
+        <input type="text" id="otherSupplierInput" placeholder="Enter supplier name">
+      </div>
+      <br><br>
 
       <div style="text-align:right;">
         <button type="button" onclick="closePurchaseModal()">Cancel</button>
@@ -206,10 +216,23 @@
 
   function openPurchaseModal() {
   document.getElementById("purchaseModal").style.display = "block";
+  
+  // Reset form if it's for adding new purchase
+  const form = document.getElementById("purchaseForm");
+  if (form.action.endsWith('/add-purchase')) {
+    form.reset();
+    document.getElementById("modalTitle").textContent = "Add Purchase";
+    document.getElementById("modalSubmit").textContent = "Add";
+  }
 }
 
 function closePurchaseModal() {
   document.getElementById("purchaseModal").style.display = "none";
+  // Reset form when closing modal
+  const form = document.getElementById("purchaseForm");
+  form.reset();
+  // Reset form action to add-purchase for next time
+  form.action = '/add-purchase';
 }
 
 function editPurchase(id) {
@@ -227,10 +250,32 @@ function editPurchase(id) {
   document.getElementById("modalSubmit").textContent = "Update";
 
   // Populate form fields
-  form.product_id.value = [...form.product_id.options].find(o => o.textContent === productText).value;
+  const productSelect = form.product_id;
+  for (let option of productSelect.options) {
+    if (option.textContent === productText) {
+      productSelect.value = option.value;
+      break;
+    }
+  }
+  
   form.purchase_quantity.value = quantity;
   form.expiration_date.value = expiry;
-  form.supplier.value = supplier;
+  
+  // Set supplier dropdown
+  const supplierSelect = form.supplier;
+  // Try to find the supplier in the options
+  let found = false;
+  for (let option of supplierSelect.options) {
+    if (option.textContent === supplier) {
+      supplierSelect.value = option.value;
+      found = true;
+      break;
+    }
+  }
+  // If supplier not found, select the first option (empty)
+  if (!found) {
+    supplierSelect.selectedIndex = 0;
+  }
 
   openPurchaseModal();
 }
@@ -247,6 +292,45 @@ function deletePurchase(id) {
     .catch(err => alert('Error deleting purchase: ' + err));
   }
 }
+
+function toggleOtherSupplier() {
+  const supplierSelect = document.getElementById('supplierSelect');
+  const otherGroup = document.getElementById('otherSupplierGroup');
+  
+  if (supplierSelect.value === '__other__') {
+    otherGroup.style.display = 'block';
+  } else {
+    otherGroup.style.display = 'none';
+  }
+}
+
+// Update form submission to handle "Other" option
+document.getElementById("purchaseForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  const form = this;
+  const formData = new FormData(form);
+  
+  // If "Other" is selected, use the custom input value
+  if (form.supplier.value === '__other__') {
+    const otherSupplier = document.getElementById('otherSupplierInput').value;
+    if (otherSupplier.trim() === '') {
+      alert('Please enter a supplier name');
+      return;
+    }
+    formData.set('supplier', otherSupplier);
+  }
+  
+  fetch(form.action, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message);
+    if (data.success) location.reload();
+  })
+  .catch(err => alert('Error: ' + err));
+});
 
 
 
@@ -318,3 +402,4 @@ function deletePurchase(id) {
 </script>
 
 {% endblock %}
+
