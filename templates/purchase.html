@@ -168,20 +168,61 @@
     }
   });
 
-  document.getElementById("purchaseForm").addEventListener("submit", function(e) {
-  e.preventDefault(); // stop normal form submit
-  const form = this;
+let isSubmitting = false;
 
+document.getElementById("purchaseForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  
+  // Prevent double submission
+  if (isSubmitting) {
+    alert('Please wait, form is already submitting...');
+    return;
+  }
+  
+  isSubmitting = true;
+  const form = this;
+  const submitButton = form.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton.textContent;
+  
+  // Show loading state
+  submitButton.textContent = 'Processing...';
+  submitButton.disabled = true;
+  
+  // Handle "Other" supplier option
+  const formData = new FormData(form);
+  if (form.supplier.value === '__other__') {
+    const otherSupplier = document.getElementById('otherSupplierInput').value;
+    if (otherSupplier.trim() === '') {
+      alert('Please enter a supplier name');
+      submitButton.textContent = originalButtonText;
+      submitButton.disabled = false;
+      isSubmitting = false;
+      return;
+    }
+    formData.set('supplier', otherSupplier);
+  }
+  
   fetch(form.action, {
     method: "POST",
-    body: new FormData(form)
+    body: formData
   })
   .then(res => res.json())
   .then(data => {
-    alert(data.message); // pop-up for success/error
-    if (data.success) location.reload(); // reload table if successful
+    alert(data.message);
+    if (data.success) {
+      location.reload(); // reload only on success
+    } else {
+      submitButton.textContent = originalButtonText;
+      submitButton.disabled = false;
+      isSubmitting = false;
+    }
   })
-  .catch(err => alert('Error: ' + err));
+  .catch(err => {
+    alert('Error: ' + err);
+    submitButton.textContent = originalButtonText;
+    submitButton.disabled = false;
+    isSubmitting = false;
+  });
 });
 
 
@@ -409,5 +450,6 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
 </script>
 
 {% endblock %}
+
 
 
