@@ -349,8 +349,8 @@ def products():
         
         # Updated query to include dosage and unit
         c.execute("""
-            SELECT p.id, p.product_name, p.product_type, p.stock_quantity, 
-                   c.category_name, p.stock_status, p.dosage, u.unit_name
+            SELECT p.id, p.product_name, p.dosage, p.product_type, 
+                   c.category_name, u.unit_name, p.stock_quantity, p.stock_status
             FROM Product p
             LEFT JOIN Category c ON p.category_id = c.id
             LEFT JOIN Unit u ON p.unit_id = u.id
@@ -394,16 +394,16 @@ def purchases():
             SELECT 
                 pu.id, 
                 pr.product_name, 
+                pr.dosage,
                 pu.batch_number, 
                 pu.purchase_quantity, 
+                u.unit_name,
                 pu.remaining_quantity, 
                 pu.expiration_date, 
                 pu.status, 
                 pu.purchase_date,
                 pu.supplier,
-                pu.invoice_number,
-                u.unit_name,
-                pr.dosage
+                pu.invoice_number
             FROM Purchase pu
             LEFT JOIN Product pr ON pu.product_id = pr.id
             LEFT JOIN Unit u ON pr.unit_id = u.id
@@ -619,7 +619,6 @@ def add_purchase():
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-
         c = conn.cursor()
 
         product_id = request.form['product_id']
@@ -628,14 +627,21 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
+        # Get unit_id from product
+        c.execute("SELECT unit_id FROM Product WHERE id = %s", (product_id,))
+        unit_result = c.fetchone()
+        unit_id = unit_result[0] if unit_result else None
+
         c.execute("""
             INSERT INTO Purchase 
-            (product_id, purchase_quantity, remaining_quantity, expiration_date, supplier, invoice_number)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, supplier, invoice_number))
+            (product_id, purchase_quantity, remaining_quantity, expiration_date, 
+             supplier, invoice_number, unit_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
+              supplier, invoice_number, unit_id))
 
         conn.commit()
-        log_activity(session['username'], f"Added stock-in: product_id {product_id}, qty {purchase_quantity}, invoice {invoice_number}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -658,7 +664,6 @@ def edit_purchase(purchase_id):
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-
         c = conn.cursor()
 
         c.execute("SELECT batch_number FROM Purchase WHERE id = %s", (purchase_id,))
@@ -671,13 +676,19 @@ def edit_purchase(purchase_id):
 
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
+        # Get unit_id from product
+        c.execute("SELECT unit_id FROM Product WHERE id = %s", (product_id,))
+        unit_result = c.fetchone()
+        unit_id = unit_result[0] if unit_result else None
+
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                         expiration_date=%s, invoice_number=%s
+                         expiration_date=%s, invoice_number=%s, unit_id=%s
                      WHERE id=%s""",
-                  (product_id, new_purchase_quantity, new_remaining_quantity, expiration_date, invoice_number, purchase_id))
+                  (product_id, new_purchase_quantity, new_remaining_quantity, 
+                   expiration_date, invoice_number, unit_id, purchase_id))
         conn.commit()
-        log_activity(session['username'], f"Edited stock-in ID {purchase_id}")
+        log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
         return jsonify({'success': True, 'message': "Purchase updated successfully!"})
     except Exception as e:
