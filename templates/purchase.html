@@ -107,7 +107,13 @@
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
       <label>Supplier:</label><br>
-      <input type="text" name="supplier" required><br><br>
+      <select name="supplier_id" required>
+        <option value="">Select Supplier</option>
+        {% for sup in suppliers %}
+          <option value="{{ sup[0] }}">{{ sup[1] }}</option>
+        {% endfor %}
+      </select>
+
 
       <div style="text-align:right;">
         <button type="button" onclick="closePurchaseModal()">Cancel</button>
@@ -317,3 +323,4 @@ function deletePurchase(id) {
 </script>
 
 {% endblock %}
+
