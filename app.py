@@ -390,25 +390,24 @@ def purchases():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        # Now using stored unit_name and dosage from purchase table
         c.execute("""
-            SELECT 
-                pu.id, 
-                pr.product_name, 
-                pu.dosage,
-                pu.batch_number, 
-                pu.purchase_quantity, 
-                pu.unit_name,
-                pu.remaining_quantity, 
-                pu.expiration_date, 
-                pu.status, 
-                pu.purchase_date,
-                pu.supplier,
-                pu.invoice_number
-            FROM Purchase pu
-            LEFT JOIN Product pr ON pu.product_id = pr.id
-            ORDER BY pu.purchase_date DESC
-        """)
+        SELECT 
+            pu.id, 
+            pr.product_name, 
+            pu.dosage,
+            pu.batch_number, 
+            pu.purchase_quantity, 
+            pu.unit_name,
+            pu.remaining_quantity, 
+            pu.expiration_date, 
+            pu.status, 
+            pu.purchase_date,
+            pu.supplier,
+            pu.invoice_number
+        FROM Purchase pu
+        LEFT JOIN Product pr ON pu.product_id = pr.id
+        ORDER BY pu.purchase_date DESC
+    """)
         purchases = c.fetchall()
         
         # Get products with dosage and unit for dropdown
@@ -458,14 +457,11 @@ def orders():
         """)
         orders = c.fetchall()
         
-        # Get invoice data with product details for dropdown
         c.execute("""
-            SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
-            FROM purchase pu
-            JOIN product pr ON pu.product_id = pr.id
-            LEFT JOIN unit u ON pr.unit_id = u.id
-            WHERE pu.remaining_quantity > 0 AND pu.invoice_number IS NOT NULL
-            ORDER BY pu.invoice_number ASC
+            SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
+                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage
+            FROM "Order" o
+            ORDER BY o.order_date DESC
         """)
         invoice_data = c.fetchall()
         
@@ -626,16 +622,21 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
-        # Get unit_name and dosage from product table
+        # Get product name, dosage, and unit_name from product table
         c.execute("""
-            SELECT p.dosage, u.unit_name 
+            SELECT p.product_name, p.dosage, u.unit_name 
             FROM Product p
             LEFT JOIN Unit u ON p.unit_id = u.id
             WHERE p.id = %s
         """, (product_id,))
         result = c.fetchone()
-        dosage = result[0] if result else ''
-        unit_name = result[1] if result else ''
+        
+        if not result:
+            return jsonify({'success': False, 'message': 'Product not found'})
+            
+        product_name, dosage, unit_name = result
+        dosage = dosage if dosage else ''
+        unit_name = unit_name if unit_name else ''
 
         c.execute("""
             INSERT INTO Purchase 
@@ -756,46 +757,45 @@ def add_order():
     if not invoice_number or order_quantity <= 0 or not customer:
         return jsonify({'success': False, 'message': 'Invalid input'}), 400
 
+    conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Get product_id, batch_number AND unit_name, dosage from purchase
+        # Get product details including stored unit_name and dosage
         c.execute("""
-            SELECT product_id, batch_number, remaining_quantity, unit_name, dosage
-            FROM purchase 
-            WHERE invoice_number = %s
+            SELECT pu.product_id, pu.batch_number, pu.remaining_quantity, 
+                   pu.unit_name, pu.dosage, pr.product_name
+            FROM purchase pu
+            LEFT JOIN product pr ON pu.product_id = pr.id
+            WHERE pu.invoice_number = %s
         """, (invoice_number,))
         purchase_info = c.fetchone()
         
         if not purchase_info:
             return jsonify({'success': False, 'message': 'Invalid invoice number'})
         
-        product_id, batch_number, remaining_quantity, unit_name, dosage = purchase_info
+        product_id, batch_number, remaining_quantity, unit_name, dosage, product_name = purchase_info
         
         if remaining_quantity < order_quantity:
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
-        # Get product name for the order (still need this)
-        c.execute("SELECT product_name FROM Product WHERE id = %s", (product_id,))
-        product_name = c.fetchone()[0]
-
+        # Insert order with all details
         c.execute("""
-            INSERT INTO "Order" (product_id, product_name, order_quantity, batch_number, 
-                                customer, invoice_number, unit_name, dosage)
+            INSERT INTO "Order" 
+            (product_id, product_name, order_quantity, batch_number, 
+             customer, invoice_number, unit_name, dosage)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, product_name, order_quantity, batch_number, 
               customer, invoice_number, unit_name, dosage))
-        conn.commit()
         
         # Update remaining quantity in purchase
-        c.execute("""
-            UPDATE Purchase 
-            SET remaining_quantity = remaining_quantity - %s 
-            WHERE invoice_number = %s
-        """, (order_quantity, invoice_number))
+        c.execute("""UPDATE Purchase
+                     SET remaining_quantity = remaining_quantity - %s
+                     WHERE invoice_number=%s""",
+                  (order_quantity, invoice_number))
+
         conn.commit()
-        
         log_activity(session['username'], f"Added order: invoice {invoice_number}, qty {order_quantity}")
 
         return jsonify({'success': True, 'message': 'Order added successfully!'})
