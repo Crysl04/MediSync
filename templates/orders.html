@@ -25,8 +25,9 @@
       </button>
       <div id="orderFilterOptions" class="filter-options" style="display: none;">
         <div class="filter-group">
-          <label>Batch Number:</label>
-          <input type="text" id="batchFilter" placeholder="Enter batch number..." onkeyup="applyOrderFilters()" />
+          <!-- Change "Batch Number" to "Invoice Number" -->
+          <label>Invoice Number:</label>
+          <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." onkeyup="applyOrderFilters()" />
         </div>
         <div class="filter-group">
           <label>Order Date:</label>
@@ -192,20 +193,20 @@ function toggleOrderFilterOptions() {
 
 function applyOrderFilters() {
   const searchValue = document.getElementById("searchOrders").value.toLowerCase();
-  const batchValue = document.getElementById("batchFilter").value.toLowerCase();
+  const invoiceValue = document.getElementById("invoiceFilter").value.toLowerCase(); // Changed from batchFilter
   const dateValue = document.getElementById("dateFilter").value;
 
   const rows = document.querySelectorAll("#ordersTable tbody tr");
   rows.forEach(row => {
     const text = row.textContent.toLowerCase();
-    const rowBatch = row.getAttribute("data-batch")?.toLowerCase();
+    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || ''; // Changed from data-batch
     const rowDate = row.getAttribute("data-date");
 
     const matchesSearch = text.includes(searchValue);
-    const matchesBatch = rowBatch.includes(batchValue);
+    const matchesInvoice = rowInvoice.includes(invoiceValue);
     const matchesDate = dateValue === "" || rowDate === dateValue;
 
-    row.style.display = matchesSearch && matchesBatch && matchesDate ? "" : "none";
+    row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
   });
 }
 
@@ -570,5 +571,6 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
