@@ -392,7 +392,8 @@ def purchases():
                 pu.expiration_date, 
                 pu.status, 
                 pu.purchase_date,
-                pu.supplier
+                pu.supplier,
+                pu.invoice_number
             FROM Purchase pu
             LEFT JOIN Product pr ON pu.product_id = pr.id
             ORDER BY pu.purchase_date DESC
@@ -421,10 +422,8 @@ def purchases():
             "MCTC"
         ]
         
-        # Sort the suppliers alphabetically for better UX
         suppliers.sort()
         
-        print("Purchases fetched:", purchases)
         return render_template('purchase.html', purchases=purchases, products=products, suppliers=suppliers)
     except Exception as e:
         print(f"Error in purchases route: {str(e)}")
@@ -446,7 +445,7 @@ def orders():
 
         c = conn.cursor()
         c.execute("""
-            SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, o.order_date, o.customer
+            SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, o.order_date, o.customer, o.invoice_number
             FROM "Order" o
             LEFT JOIN Product p ON o.product_id = p.id
             ORDER BY o.order_date DESC
@@ -455,6 +454,15 @@ def orders():
         
         c.execute("SELECT id, product_name FROM Product ORDER BY product_name ASC")
         products = c.fetchall()
+        
+        # Get available invoice numbers from purchases with remaining stock
+        c.execute("""
+            SELECT DISTINCT invoice_number 
+            FROM purchase 
+            WHERE remaining_quantity > 0 AND invoice_number IS NOT NULL
+            ORDER BY invoice_number ASC
+        """)
+        invoice_numbers = [row[0] for row in c.fetchall()]
         
         # Your specific customer list
         customers = [
@@ -469,18 +477,17 @@ def orders():
             "CITY Govt. of Butuan"
         ]
         
-        # Sort the customers alphabetically for better UX
         customers.sort()
         
-        print("Orders fetched:", orders)
-        return render_template('orders.html', orders=orders, products=products, customers=customers)
+        return render_template('orders.html', orders=orders, products=products, customers=customers, invoice_numbers=invoice_numbers)
     except Exception as e:
         print(f"Error in orders route: {str(e)}")
         flash(f'Error loading orders: {str(e)}', 'error')
-        return render_template('orders.html', orders=[], products=[], customers=[])
+        return render_template('orders.html', orders=[], products=[], customers=[], invoice_numbers=[])
     finally:
         if conn is not None:
             conn.close()
+
 @app.route('/notification')
 @login_required
 def notification():
@@ -613,15 +620,16 @@ def add_purchase():
         purchase_quantity = int(request.form['purchase_quantity'])
         expiration_date = request.form['expiration_date']
         supplier = request.form['supplier']
+        invoice_number = request.form.get('invoice_number', '')
 
         c.execute("""
             INSERT INTO Purchase 
-            (product_id, purchase_quantity, remaining_quantity, expiration_date, supplier)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, supplier))
+            (product_id, purchase_quantity, remaining_quantity, expiration_date, supplier, invoice_number)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, supplier, invoice_number))
 
         conn.commit()
-        log_activity(session['username'], f"Added stock-in: product_id {product_id}, qty {purchase_quantity}, expiration {expiration_date}")
+        log_activity(session['username'], f"Added stock-in: product_id {product_id}, qty {purchase_quantity}, invoice {invoice_number}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -639,6 +647,7 @@ def edit_purchase(purchase_id):
     product_id = request.form['product_id']
     new_purchase_quantity = int(request.form['purchase_quantity'])
     expiration_date = request.form['expiration_date']
+    invoice_number = request.form.get('invoice_number', '')
 
     conn = None
     try:
@@ -657,9 +666,10 @@ def edit_purchase(purchase_id):
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
         c.execute("""UPDATE Purchase
-                     SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, expiration_date=%s
+                     SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
+                         expiration_date=%s, invoice_number=%s
                      WHERE id=%s""",
-                  (product_id, new_purchase_quantity, new_remaining_quantity, expiration_date, purchase_id))
+                  (product_id, new_purchase_quantity, new_remaining_quantity, expiration_date, invoice_number, purchase_id))
         conn.commit()
         log_activity(session['username'], f"Edited stock-in ID {purchase_id}")
 
@@ -671,7 +681,6 @@ def edit_purchase(purchase_id):
     finally:
         if conn:
             conn.close()
-
 
 
 @app.route('/delete-purchase/<int:purchase_id>', methods=['POST'])
@@ -712,25 +721,41 @@ def delete_purchase(purchase_id):
 @app.route('/add-order', methods=['POST'])
 @login_required
 def add_order():
-    data = request.get_json()  # <-- get JSON from request
-    product_id = data.get('product_id')
-    batch_number = data.get('batch_number')
+    data = request.get_json()
+    invoice_number = data.get('invoice_number')
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
 
-    if not product_id or not batch_number or order_quantity <= 0 or not customer:
+    if not invoice_number or order_quantity <= 0 or not customer:
         return jsonify({'success': False, 'message': 'Invalid input'}), 400
 
     try:
         conn = psycopg2.connect(DATABASE_URL)
 
         c = conn.cursor()
+        
+        # Get product_id and batch_number from purchase using invoice_number
         c.execute("""
-            INSERT INTO "Order" (product_id, order_quantity, batch_number, customer)
-            VALUES (%s, %s, %s, %s)
-        """, (product_id, order_quantity, batch_number, customer))
+            SELECT product_id, batch_number, remaining_quantity 
+            FROM purchase 
+            WHERE invoice_number = %s
+        """, (invoice_number,))
+        purchase_info = c.fetchone()
+        
+        if not purchase_info:
+            return jsonify({'success': False, 'message': 'Invalid invoice number'})
+        
+        product_id, batch_number, remaining_quantity = purchase_info
+        
+        if remaining_quantity < order_quantity:
+            return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
+
+        c.execute("""
+            INSERT INTO "Order" (product_id, order_quantity, batch_number, customer, invoice_number)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (product_id, order_quantity, batch_number, customer, invoice_number))
         conn.commit()
-        log_activity(session['username'], f"Added stock-out: product_id {product_id}, batch {batch_number}, qty {order_quantity}")
+        log_activity(session['username'], f"Added stock-out: invoice {invoice_number}, qty {order_quantity}")
 
         return jsonify({'success': True, 'message': 'Order added successfully!'})
     except Exception as e:
@@ -742,14 +767,12 @@ def add_order():
             conn.close()
 
 
-
 @app.route('/edit-order/<int:order_id>', methods=['POST'])
 @login_required
 def edit_order(order_id):
     data = request.get_json()
-    product_id = data['product_id']
-    batch_number = data['batch_number']
-    new_quantity = int(data['order_quantity'])
+    invoice_number = data.get('invoice_number')
+    new_quantity = int(data.get('order_quantity'))
 
     conn = None
     try:
@@ -758,33 +781,49 @@ def edit_order(order_id):
         c = conn.cursor()
 
         # Get old order info
-        c.execute('SELECT product_id, batch_number, order_quantity FROM "Order" WHERE order_id=%s', (order_id,))
+        c.execute('SELECT product_id, batch_number, order_quantity, invoice_number FROM "Order" WHERE order_id=%s', (order_id,))
         old_order = c.fetchone()
         if not old_order:
             return jsonify({'success': False, 'message': 'Order not found'})
 
-        old_product_id, old_batch, old_quantity = old_order
+        old_product_id, old_batch, old_quantity, old_invoice = old_order
 
-        # 1️⃣ Update remaining quantity in old purchase
-        c.execute("""UPDATE Purchase
-                     SET remaining_quantity = remaining_quantity + %s
-                     WHERE product_id=%s AND batch_number=%s""",
-                  (old_quantity, old_product_id, old_batch))
+        # 1️⃣ Update remaining quantity in old purchase (if invoice changed)
+        if old_invoice != invoice_number:
+            c.execute("""UPDATE Purchase
+                         SET remaining_quantity = remaining_quantity + %s
+                         WHERE invoice_number=%s""",
+                      (old_quantity, old_invoice))
+
+        # Get new purchase info
+        c.execute("""
+            SELECT product_id, batch_number, remaining_quantity 
+            FROM purchase 
+            WHERE invoice_number = %s
+        """, (invoice_number,))
+        new_purchase_info = c.fetchone()
+        
+        if not new_purchase_info:
+            return jsonify({'success': False, 'message': 'Invalid invoice number'})
+        
+        new_product_id, new_batch_number, remaining_quantity = new_purchase_info
+        
+        if remaining_quantity < new_quantity:
+            return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
         # 2️⃣ Update order
         customer = data.get('customer')
         c.execute("""
-    UPDATE "Order"
-    SET product_id=%s, batch_number=%s, order_quantity=%s, customer=%s
-    WHERE order_id=%s
-""", (product_id, batch_number, new_quantity, customer, order_id))
-
+            UPDATE "Order"
+            SET product_id=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s
+            WHERE order_id=%s
+        """, (new_product_id, new_batch_number, new_quantity, customer, invoice_number, order_id))
 
         # 3️⃣ Deduct from new purchase remaining_quantity
         c.execute("""UPDATE Purchase
                      SET remaining_quantity = remaining_quantity - %s
-                     WHERE product_id=%s AND batch_number=%s""",
-                  (new_quantity, product_id, batch_number))
+                     WHERE invoice_number=%s""",
+                  (new_quantity, invoice_number))
 
         conn.commit()
         log_activity(session['username'], f"Edited stock-out ID {order_id}")
@@ -797,8 +836,7 @@ def edit_order(order_id):
     finally:
         if conn:
             conn.close()
-
-
+            
 @app.route('/delete-order/<int:order_id>', methods=['POST'])
 @login_required
 def delete_order(order_id):
@@ -831,6 +869,37 @@ def delete_order(order_id):
         if conn:
             conn.rollback()
         return jsonify({'success': False, 'message': f'Error deleting order: {str(e)}'})
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/get-purchase-info/<invoice_number>')
+@login_required
+def get_purchase_info(invoice_number):
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+
+        c = conn.cursor()
+        c.execute("""
+            SELECT pr.product_name, pu.remaining_quantity, pu.batch_number
+            FROM purchase pu
+            JOIN product pr ON pu.product_id = pr.id
+            WHERE pu.invoice_number = %s
+        """, (invoice_number,))
+        
+        result = c.fetchone()
+        if result:
+            return jsonify({
+                'success': True,
+                'product_name': result[0],
+                'remaining_quantity': result[1],
+                'batch_number': result[2]
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Invoice not found'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
     finally:
         if conn:
             conn.close()
