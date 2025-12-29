@@ -390,14 +390,15 @@ def purchases():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
+        # Now using stored unit_name and dosage from purchase table
         c.execute("""
             SELECT 
                 pu.id, 
                 pr.product_name, 
-                pr.dosage,
+                pu.dosage,
                 pu.batch_number, 
                 pu.purchase_quantity, 
-                u.unit_name,
+                pu.unit_name,
                 pu.remaining_quantity, 
                 pu.expiration_date, 
                 pu.status, 
@@ -406,7 +407,6 @@ def purchases():
                 pu.invoice_number
             FROM Purchase pu
             LEFT JOIN Product pr ON pu.product_id = pr.id
-            LEFT JOIN Unit u ON pr.unit_id = u.id
             ORDER BY pu.purchase_date DESC
         """)
         purchases = c.fetchall()
@@ -449,12 +449,11 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
+        # Now using stored unit_name and dosage from Order table
         c.execute("""
-            SELECT o.order_id, p.product_name, o.order_quantity, o.batch_number, 
-                   o.order_date, o.customer, o.invoice_number, u.unit_name, p.dosage
+            SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
+                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage
             FROM "Order" o
-            LEFT JOIN Product p ON o.product_id = p.id
-            LEFT JOIN Unit u ON p.unit_id = u.id
             ORDER BY o.order_date DESC
         """)
         orders = c.fetchall()
@@ -627,18 +626,24 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
-        # Get unit_id from product
-        c.execute("SELECT unit_id FROM Product WHERE id = %s", (product_id,))
-        unit_result = c.fetchone()
-        unit_id = unit_result[0] if unit_result else None
+        # Get unit_name and dosage from product table
+        c.execute("""
+            SELECT p.dosage, u.unit_name 
+            FROM Product p
+            LEFT JOIN Unit u ON p.unit_id = u.id
+            WHERE p.id = %s
+        """, (product_id,))
+        result = c.fetchone()
+        dosage = result[0] if result else ''
+        unit_name = result[1] if result else ''
 
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, unit_name, dosage)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_id))
+              supplier, invoice_number, unit_name, dosage))
 
         conn.commit()
         log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}")
@@ -676,17 +681,23 @@ def edit_purchase(purchase_id):
 
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
-        # Get unit_id from product
-        c.execute("SELECT unit_id FROM Product WHERE id = %s", (product_id,))
-        unit_result = c.fetchone()
-        unit_id = unit_result[0] if unit_result else None
+        # Get unit_name and dosage from product table
+        c.execute("""
+            SELECT p.dosage, u.unit_name 
+            FROM Product p
+            LEFT JOIN Unit u ON p.unit_id = u.id
+            WHERE p.id = %s
+        """, (product_id,))
+        result = c.fetchone()
+        dosage = result[0] if result else ''
+        unit_name = result[1] if result else ''
 
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                         expiration_date=%s, invoice_number=%s, unit_id=%s
+                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, 
-                   expiration_date, invoice_number, unit_id, purchase_id))
+                   expiration_date, invoice_number, unit_name, dosage, purchase_id))
         conn.commit()
         log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
@@ -698,7 +709,6 @@ def edit_purchase(purchase_id):
     finally:
         if conn:
             conn.close()
-
 
 @app.route('/delete-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
@@ -748,12 +758,11 @@ def add_order():
 
     try:
         conn = psycopg2.connect(DATABASE_URL)
-
         c = conn.cursor()
         
-        # Get product_id and batch_number from purchase using invoice_number
+        # Get product_id, batch_number AND unit_name, dosage from purchase
         c.execute("""
-            SELECT product_id, batch_number, remaining_quantity 
+            SELECT product_id, batch_number, remaining_quantity, unit_name, dosage
             FROM purchase 
             WHERE invoice_number = %s
         """, (invoice_number,))
@@ -762,17 +771,32 @@ def add_order():
         if not purchase_info:
             return jsonify({'success': False, 'message': 'Invalid invoice number'})
         
-        product_id, batch_number, remaining_quantity = purchase_info
+        product_id, batch_number, remaining_quantity, unit_name, dosage = purchase_info
         
         if remaining_quantity < order_quantity:
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
+        # Get product name for the order (still need this)
+        c.execute("SELECT product_name FROM Product WHERE id = %s", (product_id,))
+        product_name = c.fetchone()[0]
+
         c.execute("""
-            INSERT INTO "Order" (product_id, order_quantity, batch_number, customer, invoice_number)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (product_id, order_quantity, batch_number, customer, invoice_number))
+            INSERT INTO "Order" (product_id, product_name, order_quantity, batch_number, 
+                                customer, invoice_number, unit_name, dosage)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (product_id, product_name, order_quantity, batch_number, 
+              customer, invoice_number, unit_name, dosage))
         conn.commit()
-        log_activity(session['username'], f"Added stock-out: invoice {invoice_number}, qty {order_quantity}")
+        
+        # Update remaining quantity in purchase
+        c.execute("""
+            UPDATE Purchase 
+            SET remaining_quantity = remaining_quantity - %s 
+            WHERE invoice_number = %s
+        """, (order_quantity, invoice_number))
+        conn.commit()
+        
+        log_activity(session['username'], f"Added order: invoice {invoice_number}, qty {order_quantity}")
 
         return jsonify({'success': True, 'message': 'Order added successfully!'})
     except Exception as e:
@@ -782,7 +806,6 @@ def add_order():
     finally:
         if conn:
             conn.close()
-
 
 @app.route('/edit-order/<int:order_id>', methods=['POST'])
 @login_required
