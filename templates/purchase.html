@@ -102,11 +102,14 @@
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
+      <!-- In purchase.html modal form -->
       <label>Product:</label><br>
       <select name="product_id" id="productSelect" required>
         <option value="">Select Product</option>
         {% for prod in products %}
-          <option value="{{ prod[0] }}">{{ prod[1] }}</option>
+          <option value="{{ prod[0] }}">
+            {{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} ({{ prod[3] if prod[3] else 'N/A' }})
+          </option>
         {% endfor %}
       </select><br><br>
       <label>Purchase Quantity:</label><br>
@@ -424,6 +427,7 @@ function toggleOtherSupplier() {
 </script>
 
 {% endblock %}
+
 
 
 
