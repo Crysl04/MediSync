@@ -242,24 +242,24 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   }
 
   function applyPurchaseFilters() {
-    const batchVal = document.getElementById("batchFilter").value.toLowerCase();
-    const statusVal = document.getElementById("statusFilter").value.toLowerCase();
-    const dateVal = document.getElementById("dateFilter").value;
-    const rows = document.querySelectorAll("#purchasesTable tbody tr");
+  const batchVal = document.getElementById("batchFilter").value.toLowerCase();
+  const statusVal = document.getElementById("statusFilter").value.toLowerCase();
+  const dateVal = document.getElementById("dateFilter").value;
+  const rows = document.querySelectorAll("#purchasesTable tbody tr");
 
-    rows.forEach(row => {
-      const batch = row.cells[2].textContent.toLowerCase();
-      const status = row.cells[6].textContent.toLowerCase();
-      const date = row.cells[7].textContent;
+  rows.forEach(row => {
+    const batch = row.cells[4].textContent.toLowerCase(); // Batch is now index 4
+    const status = row.cells[7].textContent.toLowerCase(); // Status is now index 7
+    const date = row.cells[1].textContent; // Date is now index 1
 
-      const matchBatch = !batchVal || batch.includes(batchVal);
-      const matchStatus = !statusVal || status === statusVal;
-      const matchDate = !dateVal || date === dateVal;
+    const matchBatch = !batchVal || batch.includes(batchVal);
+    const matchStatus = !statusVal || status === statusVal;
+    const matchDate = !dateVal || date === dateVal;
 
-      row.style.display = matchBatch && matchStatus && matchDate ? "" : "none";
-    });
-  }
-
+    row.style.display = matchBatch && matchStatus && matchDate ? "" : "none";
+  });
+}
+  
   function openPurchaseModal() {
   document.getElementById("purchaseModal").style.display = "block";
   
@@ -284,11 +284,14 @@ function closePurchaseModal() {
 function editPurchase(id) {
   const row = document.querySelector(`#purchasesTable tbody tr[data-purchase-id='${id}']`);
 
-  const invoiceNumber = row.cells[0].textContent.trim(); // Invoice Number
-  const productText = row.cells[3].textContent; // Product Name
-  const quantity = row.cells[4].textContent;    // Quantity
-  const expiry = row.cells[6].textContent;      // Expiration Date
-  const supplier = row.cells[2].textContent;    // Supplier
+  const invoiceNumber = row.cells[0].textContent.trim(); // Invoice Number (now index 0)
+  const dateReceived = row.cells[1].textContent; // Date Received (now index 1)
+  const supplier = row.cells[2].textContent; // Supplier (now index 2)
+  const productText = row.cells[3].textContent; // Product Name (now index 3)
+  const batchNumber = row.cells[4].textContent; // Batch Number (now index 4)
+  const quantity = row.cells[5].textContent; // Quantity (now index 5)
+  const expiry = row.cells[6].textContent; // Expiration Date (now index 6)
+  const status = row.cells[7].textContent; // Status (now index 7)
 
   const form = document.getElementById("purchaseForm");
   form.action = '/edit-purchase/' + id;
@@ -351,36 +354,6 @@ function toggleOtherSupplier() {
     otherGroup.style.display = 'none';
   }
 }
-
-// Update form submission to handle "Other" option
-document.getElementById("purchaseForm").addEventListener("submit", function(e) {
-  e.preventDefault();
-  const form = this;
-  const formData = new FormData(form);
-  
-  // If "Other" is selected, use the custom input value
-  if (form.supplier.value === '__other__') {
-    const otherSupplier = document.getElementById('otherSupplierInput').value;
-    if (otherSupplier.trim() === '') {
-      alert('Please enter a supplier name');
-      return;
-    }
-    formData.set('supplier', otherSupplier);
-  }
-  
-  fetch(form.action, {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if (data.success) location.reload();
-  })
-  .catch(err => alert('Error: ' + err));
-});
-
-
 
   let currentSort = {
     column: 'id',
@@ -450,6 +423,7 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
 </script>
 
 {% endblock %}
+
 
 
 
