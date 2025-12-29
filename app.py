@@ -383,30 +383,50 @@ def purchases():
 
         c = conn.cursor()
         c.execute("""
-    SELECT 
-        pu.id, 
-        pr.product_name, 
-        pu.batch_number, 
-        pu.purchase_quantity, 
-        pu.remaining_quantity, 
-        pu.expiration_date, 
-        pu.status, 
-        pu.purchase_date,
-        pu.supplier
-    FROM Purchase pu
-    LEFT JOIN Product pr ON pu.product_id = pr.id
-    ORDER BY pu.purchase_date DESC
-""")
-
+            SELECT 
+                pu.id, 
+                pr.product_name, 
+                pu.batch_number, 
+                pu.purchase_quantity, 
+                pu.remaining_quantity, 
+                pu.expiration_date, 
+                pu.status, 
+                pu.purchase_date,
+                pu.supplier
+            FROM Purchase pu
+            LEFT JOIN Product pr ON pu.product_id = pr.id
+            ORDER BY pu.purchase_date DESC
+        """)
         purchases = c.fetchall()
+        
         c.execute("SELECT id, product_name FROM Product ORDER BY product_name ASC")
         products = c.fetchall()
+        
+        # Your specific supplier list
+        suppliers = [
+            "Medicines",
+            "Regimed Pharmaceutical",
+            "Meedpharma Medical Supplies and Equipt.",
+            "Bansan Pharma",
+            "Greencore Pharma Corp.",
+            "Federal Pharmaceutical Inc.",
+            "Nextmed Pharmaceutical",
+            "Metro Drug Corp.",
+            "Zuellig Pharma Corp.",
+            "Natra Pharma",
+            "Euro-Med Laboratories",
+            "Endure Medical Inc"
+        ]
+        
+        # Sort the suppliers alphabetically for better UX
+        suppliers.sort()
+        
         print("Purchases fetched:", purchases)
-        return render_template('purchase.html', purchases=purchases, products=products)
+        return render_template('purchase.html', purchases=purchases, products=products, suppliers=suppliers)
     except Exception as e:
         print(f"Error in purchases route: {str(e)}")
         flash(f'Error loading purchases: {str(e)}', 'error')
-        return render_template('purchase.html', purchases=[], products=[])
+        return render_template('purchase.html', purchases=[], products=[], suppliers=[])
     finally:
         if conn is not None:
             conn.close()
