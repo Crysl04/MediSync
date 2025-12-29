@@ -59,8 +59,10 @@
       <th>Date Received</th>
       <th>Supplier</th>
       <th>Product Name</th>
+      <th>Dosage</th>
       <th>Batch Number</th>
       <th>Quantity</th>
+      <th>Unit</th>
       <th>Expiration Date</th>
       <th>Status</th>
       <th>Actions</th>
@@ -70,14 +72,16 @@
     {% if purchases %}
       {% for purchase in purchases %}
         <tr data-purchase-id="{{ purchase[0] }}" data-product-id="{{ purchase[1] }}">
-          <td>{{ purchase[9] if purchase[9] else 'N/A' }}</td> <!-- Invoice Number -->
-          <td>{{ purchase[7] }}</td> <!-- Purchase Date -->
-          <td>{{ purchase[8] }}</td> <!-- Supplier -->
+          <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td> <!-- Invoice Number -->
+          <td>{{ purchase[9] }}</td> <!-- Purchase Date -->
+          <td>{{ purchase[10] }}</td> <!-- Supplier -->
           <td>{{ purchase[1] }}</td> <!-- Product Name -->
-          <td>{{ purchase[2] }}</td> <!-- Batch Number -->
-          <td>{{ purchase[3] }}</td> <!-- Quantity -->
-          <td>{{ purchase[5] }}</td> <!-- Expiration Date -->
-          <td>{{ purchase[6] }}</td> <!-- Status -->
+          <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
+          <td>{{ purchase[3] }}</td> <!-- Batch Number -->
+          <td>{{ purchase[4] }}</td> <!-- Quantity -->
+          <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
+          <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
+          <td>{{ purchase[8] }}</td> <!-- Status -->
           <td>
             <button onclick="editPurchase('{{ purchase[0] }}')">Edit</button>
             <button onclick="deletePurchase('{{ purchase[0] }}')">Delete</button>
@@ -86,7 +90,7 @@
       {% endfor %}
     {% else %}
       <tr>
-        <td colspan="9" style="text-align:center;">No purchases found</td>
+        <td colspan="11" style="text-align:center;">No purchases found</td>
       </tr>
     {% endif %}
   </tbody>
@@ -95,6 +99,7 @@
 
 </main>
 
+<!-- Add dosage and unit display fields to purchase modal -->
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2 id="modalTitle">Add Purchase</h2>
@@ -102,20 +107,28 @@
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
-      <!-- In purchase.html modal form -->
       <label>Product:</label><br>
-      <select name="product_id" id="productSelect" required>
+      <select name="product_id" id="productSelect" required onchange="updatePurchaseProductInfo()">
         <option value="">Select Product</option>
         {% for prod in products %}
-          <option value="{{ prod[0] }}">
+          <option value="{{ prod[0] }}" data-dosage="{{ prod[2] if prod[2] else '' }}" data-unit="{{ prod[3] if prod[3] else '' }}">
             {{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} ({{ prod[3] if prod[3] else 'N/A' }})
           </option>
         {% endfor %}
       </select><br><br>
+      
+      <label>Dosage:</label><br>
+      <input type="text" id="purchaseDosage" readonly><br><br>
+      
+      <label>Unit:</label><br>
+      <input type="text" id="purchaseUnit" readonly><br><br>
+      
       <label>Purchase Quantity:</label><br>
       <input type="number" name="purchase_quantity" min="1" required><br><br>
+      
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
+      
       <label>Supplier:</label><br>
       <select name="supplier" id="supplierSelect" onchange="toggleOtherSupplier()" required>
         <option value="">Select Supplier</option>
@@ -136,7 +149,7 @@
     </form>
   </div>
 </div>
-
+  
 <style>
   td button {
     margin: 2px;
@@ -427,6 +440,7 @@ function toggleOtherSupplier() {
 </script>
 
 {% endblock %}
+
 
 
 
