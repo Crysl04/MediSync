@@ -52,6 +52,7 @@
 
   <div class="purchases-table">
   <table id="purchasesTable">
+  <!-- purchase.html - Table Headers -->
   <thead>
     <tr>
       <th>Invoice Number</th>
@@ -60,6 +61,7 @@
       <th>Product Name</th>
       <th>Batch Number</th>
       <th>Quantity</th>
+      <th>Unit</th>
       <th>Expiration Date</th>
       <th>Status</th>
       <th>Actions</th>
@@ -75,6 +77,7 @@
           <td>{{ purchase[1] }}</td> <!-- Product Name -->
           <td>{{ purchase[2] }}</td> <!-- Batch Number -->
           <td>{{ purchase[3] }}</td> <!-- Quantity -->
+          <td>{{ purchase[10] if purchase[10] else 'N/A' }}</td> <!-- Unit -->
           <td>{{ purchase[5] }}</td> <!-- Expiration Date -->
           <td>{{ purchase[6] }}</td> <!-- Status -->
           <td>
@@ -85,7 +88,7 @@
       {% endfor %}
     {% else %}
       <tr>
-        <td colspan="9" style="text-align:center;">No purchases found</td>
+        <td colspan="10" style="text-align:center;">No purchases found</td>
       </tr>
     {% endif %}
   </tbody>
@@ -101,11 +104,14 @@
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
+      <!-- Update the product dropdown in purchase modal -->
       <label>Product:</label><br>
       <select name="product_id" id="productSelect" required>
         <option value="">Select Product</option>
         {% for prod in products %}
-          <option value="{{ prod[0] }}">{{ prod[1] }}</option>
+          <option value="{{ prod[0] }}">
+            {{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} ({{ prod[3] if prod[3] else 'N/A' }})
+          </option>
         {% endfor %}
       </select><br><br>
       <label>Purchase Quantity:</label><br>
@@ -423,6 +429,7 @@ function toggleOtherSupplier() {
 </script>
 
 {% endblock %}
+
 
 
 
