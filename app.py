@@ -391,9 +391,10 @@ def purchases():
         pu.expiration_date, 
         pu.status, 
         pu.purchase_date,
-        pu.supplier
+        s.supplier
     FROM Purchase pu
     LEFT JOIN Product pr ON pu.product_id = pr.id
+    LEFT JOIN Supplier s ON pu.supplier_id = s.id
     ORDER BY pu.purchase_date DESC
 """)
 
