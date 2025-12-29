@@ -96,6 +96,7 @@
 </style>
 
 <!-- Add Order Modal -->
+<!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2>Add Order</h2>
@@ -115,7 +116,17 @@
       <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
 
       <label>Customer:</label><br>
-      <input type="text" name="customer" id="addCustomer" required><br><br>
+      <select name="customer" id="addCustomer" onchange="toggleOtherCustomer('add')" required>
+        <option value="">Select Customer</option>
+        {% for customer in customers %}
+          <option value="{{ customer }}">{{ customer }}</option>
+        {% endfor %}
+        <option value="__other__">Other (enter below)</option>
+      </select>
+      <div id="addOtherCustomerGroup" style="display:none; margin-top:5px;">
+        <input type="text" id="addOtherCustomerInput" placeholder="Enter customer name">
+      </div>
+      <br><br>
 
       <div style="text-align:right;">
         <button type="button" onclick="closeAddOrderModal()">Cancel</button>
@@ -125,6 +136,7 @@
   </div>
 </div>
 
+<!-- Edit Order Modal -->
 <!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
@@ -147,7 +159,17 @@
       <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
 
       <label>Customer:</label><br>
-      <input type="text" name="customer" id="editCustomer" required><br><br>
+      <select name="customer" id="editCustomer" onchange="toggleOtherCustomer('edit')" required>
+        <option value="">Select Customer</option>
+        {% for customer in customers %}
+          <option value="{{ customer }}">{{ customer }}</option>
+        {% endfor %}
+        <option value="__other__">Other (enter below)</option>
+      </select>
+      <div id="editOtherCustomerGroup" style="display:none; margin-top:5px;">
+        <input type="text" id="editOtherCustomerInput" placeholder="Enter customer name">
+      </div>
+      <br><br>
 
       <div style="text-align:right;">
         <button type="button" onclick="closeEditOrderModal()">Cancel</button>
@@ -182,9 +204,18 @@ function applyOrderFilters() {
   });
 }
 
-// Add Order Modal
-function openAddOrderModal() { document.getElementById('addOrderModal').style.display = 'block'; }
-function closeAddOrderModal() { document.getElementById('addOrderModal').style.display = 'none'; }
+// Add Order Modal functions
+function openAddOrderModal() { 
+  document.getElementById('addOrderModal').style.display = 'block';
+  // Reset form
+  document.getElementById('addOrderForm').reset();
+}
+
+function closeAddOrderModal() { 
+  document.getElementById('addOrderModal').style.display = 'none';
+  // Reset form
+  document.getElementById('addOrderForm').reset();
+}
 
 document.getElementById('addOrderForm').addEventListener('submit', function(e) {
   e.preventDefault();
@@ -217,10 +248,36 @@ function openEditOrderModal(orderId, productId, batchNumber, quantity, customer)
   document.getElementById('editProductId').value = productId;
   document.getElementById('editBatchNumber').value = batchNumber;
   document.getElementById('editOrderQuantity').value = quantity;
-  document.getElementById('editCustomer').value = customer;
+  
+  // Set customer dropdown
+  const customerSelect = document.getElementById('editCustomer');
+  const otherGroup = document.getElementById('editOtherCustomerGroup');
+  const otherInput = document.getElementById('editOtherCustomerInput');
+  
+  // Try to find the customer in the options
+  let found = false;
+  for (let option of customerSelect.options) {
+    if (option.textContent === customer) {
+      customerSelect.value = option.value;
+      found = true;
+      otherGroup.style.display = 'none';
+      break;
+    }
+  }
+  
+  // If customer not found in the list, show "Other" input
+  if (!found) {
+    customerSelect.value = '__other__';
+    otherGroup.style.display = 'block';
+    otherInput.value = customer;
+  }
+  
   document.getElementById('editOrderModal').style.display = 'block';
 }
-function closeEditOrderModal() { document.getElementById('editOrderModal').style.display = 'none'; }
+  
+function closeEditOrderModal() { 
+  document.getElementById('editOrderModal').style.display = 'none';
+}
 
 document.getElementById('editOrderForm').addEventListener('submit', function(e) {
   e.preventDefault();
@@ -242,6 +299,103 @@ document.getElementById('editOrderForm').addEventListener('submit', function(e) 
   });
 });
 
+function toggleOtherCustomer(type) {
+  const customerSelect = document.getElementById(type === 'add' ? 'addCustomer' : 'editCustomer');
+  const otherGroup = document.getElementById(type === 'add' ? 'addOtherCustomerGroup' : 'editOtherCustomerGroup');
+  
+  if (customerSelect.value === '__other__') {
+    otherGroup.style.display = 'block';
+  } else {
+    otherGroup.style.display = 'none';
+  }
+}
+
+// Update add order form submission to handle "Other" option
+document.getElementById('addOrderForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  let customerValue;
+  const customerSelect = document.getElementById('addCustomer');
+  
+  // If "Other" is selected, use the custom input value
+  if (customerSelect.value === '__other__') {
+    const otherCustomer = document.getElementById('addOtherCustomerInput').value;
+    if (otherCustomer.trim() === '') {
+      alert('Please enter a customer name');
+      return;
+    }
+    customerValue = otherCustomer;
+  } else {
+    customerValue = customerSelect.value;
+  }
+  
+  const productId = parseInt(document.getElementById('addProductId').value);
+  const batchNumber = document.getElementById('addBatchNumber').value;
+  const quantity = parseInt(document.getElementById('addOrderQuantity').value);
+
+  if(isNaN(productId) || isNaN(quantity) || !batchNumber || !customerValue) {
+    alert('Please fill all fields correctly.');
+    return;
+  }
+
+  fetch('/add-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      product_id: productId, 
+      batch_number: batchNumber, 
+      order_quantity: quantity, 
+      customer: customerValue 
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message);
+    if(data.success) location.reload();
+  });
+});
+
+// Update edit order form submission to handle "Other" option
+document.getElementById('editOrderForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  let customerValue;
+  const customerSelect = document.getElementById('editCustomer');
+  
+  // If "Other" is selected, use the custom input value
+  if (customerSelect.value === '__other__') {
+    const otherCustomer = document.getElementById('editOtherCustomerInput').value;
+    if (otherCustomer.trim() === '') {
+      alert('Please enter a customer name');
+      return;
+    }
+    customerValue = otherCustomer;
+  } else {
+    customerValue = customerSelect.value;
+  }
+  
+  const orderId = document.getElementById('editOrderId').value;
+  const productId = document.getElementById('editProductId').value;
+  const batchNumber = document.getElementById('editBatchNumber').value;
+  const quantity = document.getElementById('editOrderQuantity').value;
+
+  fetch(`/edit-order/${orderId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      product_id: productId, 
+      batch_number: batchNumber, 
+      order_quantity: quantity, 
+      customer: customerValue 
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert(data.message);
+    if(data.success) location.reload();
+  });
+});
+
 // Delete order
 function deleteOrder(orderId) {
   if(confirm('Are you sure you want to delete this order?')) {
@@ -255,3 +409,4 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
