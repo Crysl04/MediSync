@@ -219,11 +219,18 @@
 
   function editProduct(id) {
   const row = [...document.querySelectorAll('#productsTable tbody tr')].find(r => r.cells[0].textContent == id);
+  
+  // Correct indices based on your table structure
   const name = row.cells[1].textContent;
-  const type = row.cells[2].textContent;
-  const categoryText = row.cells[3].textContent;
-  const categoryId = [...document.querySelectorAll('select[name="category_id"] option')]
-                       .find(opt => opt.textContent == categoryText).value;
+  const dosage = row.cells[2].textContent;
+  const type = row.cells[3].textContent;
+  const categoryText = row.cells[4].textContent; // Category is at index 4, not 3
+  const unitText = row.cells[5].textContent;
+  
+  // Find category option
+  const categoryOption = [...document.querySelectorAll('select[name="category_id"] option')]
+                       .find(opt => opt.textContent == categoryText);
+  const categoryId = categoryOption ? categoryOption.value : '';
 
   document.getElementById('modalTitle').textContent = 'Edit Product';
   document.getElementById('modalSubmit').textContent = 'Update';
@@ -231,8 +238,16 @@
   form.action = '/edit-product/' + id;
 
   form.product_name.value = name;
+  form.dosage.value = dosage || '';
   form.product_type.value = type;
   form.category_id.value = categoryId;
+  
+  // Also set unit_id if you have a unit field in your form
+  if (form.unit_id) {
+    const unitOption = [...document.querySelectorAll('select[name="unit_id"] option')]
+                      .find(opt => opt.textContent == unitText);
+    form.unit_id.value = unitOption ? unitOption.value : '';
+  }
 
   form.onsubmit = function(e) {
     e.preventDefault();
@@ -243,6 +258,9 @@
         if(data.success) location.reload();
       });
   }
+
+  openProductModal();
+}
 
   openProductModal();
 }
@@ -368,5 +386,6 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
+
 
 
