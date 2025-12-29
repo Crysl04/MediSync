@@ -368,46 +368,6 @@ function updateEditProductInfo() {
     });
 }
 
-// Update product info when invoice is selected (for edit order)
-function updateEditProductInfo() {
-  const invoiceSelect = document.getElementById('editInvoiceNumber');
-  const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
-  
-  if (!selectedOption.value) {
-    document.getElementById('editProductInfo').value = '';
-    document.getElementById('editDosageInfo').value = '';
-    document.getElementById('editUnitInfo').value = '';
-    document.getElementById('editAvailableQty').value = '';
-    return;
-  }
-  
-  const invoiceNumber = selectedOption.value;
-  const productName = selectedOption.getAttribute('data-product');
-  const dosage = selectedOption.getAttribute('data-dosage');
-  const unit = selectedOption.getAttribute('data-unit');
-  
-  // Set the product info fields
-  document.getElementById('editProductInfo').value = productName;
-  document.getElementById('editDosageInfo').value = dosage || '';
-  document.getElementById('editUnitInfo').value = unit || '';
-  
-  // Fetch available quantity
-  fetch(`/get-purchase-info/${invoiceNumber}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById('editAvailableQty').value = data.remaining_quantity;
-      } else {
-        alert(data.message);
-        document.getElementById('editAvailableQty').value = '';
-      }
-    })
-    .catch(err => {
-      console.error('Error:', err);
-      document.getElementById('editAvailableQty').value = '';
-    });
-}
-
 // Form submission handlers
 document.addEventListener('DOMContentLoaded', function() {
   // Add Order Form Submission
@@ -541,6 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
 
 
