@@ -212,6 +212,7 @@
   </div>
 </div>
 <script>
+// Filter functions
 function toggleOrderFilterOptions() {
   const filterBox = document.getElementById("orderFilterOptions");
   filterBox.style.display = filterBox.style.display === "none" ? "block" : "none";
@@ -219,18 +220,18 @@ function toggleOrderFilterOptions() {
 
 function applyOrderFilters() {
   const searchValue = document.getElementById("searchOrders").value.toLowerCase();
-  const invoiceValue = document.getElementById("invoiceFilter").value.toLowerCase(); // Changed from batchFilter
+  const invoiceValue = document.getElementById("invoiceFilter").value.toLowerCase();
   const dateValue = document.getElementById("dateFilter").value;
 
   const rows = document.querySelectorAll("#ordersTable tbody tr");
   rows.forEach(row => {
     const text = row.textContent.toLowerCase();
-    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || ''; // Changed from data-batch
+    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || '';
     const rowDate = row.getAttribute("data-date");
 
     const matchesSearch = text.includes(searchValue);
-    const matchesInvoice = rowInvoice.includes(invoiceValue);
-    const matchesDate = dateValue === "" || rowDate === dateValue;
+    const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
+    const matchesDate = !dateValue || rowDate === dateValue;
 
     row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
   });
@@ -238,48 +239,35 @@ function applyOrderFilters() {
 
 // Add Order Modal functions
 function openAddOrderModal() { 
+  console.log("openAddOrderModal called"); // Debug log
   document.getElementById('addOrderModal').style.display = 'block';
   // Reset form
   document.getElementById('addOrderForm').reset();
+  // Clear product info fields
+  document.getElementById('addProductInfo').value = '';
+  document.getElementById('addDosageInfo').value = '';
+  document.getElementById('addUnitInfo').value = '';
+  document.getElementById('addAvailableQty').value = '';
+  document.getElementById('addOrderQuantity').value = '';
+  document.getElementById('addCustomer').selectedIndex = 0;
+  document.getElementById('addOtherCustomerGroup').style.display = 'none';
 }
 
 function closeAddOrderModal() { 
   document.getElementById('addOrderModal').style.display = 'none';
-  // Reset form
   document.getElementById('addOrderForm').reset();
 }
 
-document.getElementById('addOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const productId = parseInt(document.getElementById('addProductId').value);
-  const batchNumber = document.getElementById('addBatchNumber').value;
-  const quantity = parseInt(document.getElementById('addOrderQuantity').value);
-  const customer = document.getElementById('addCustomer').value;
-
-  if(isNaN(productId) || isNaN(quantity) || !batchNumber || !customer) {
-    alert('Please fill all fields correctly.');
-    return;
-  }
-
-  fetch('/add-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId, batch_number: batchNumber, order_quantity: quantity, customer: customer })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  });
-});
-
-
-// Edit Order Modal
-function openEditOrderModal(orderId, productId, batchNumber, quantity, customer) {
+// Edit Order Modal functions
+function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit) {
+  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit}); // Debug log
+  
   document.getElementById('editOrderId').value = orderId;
-  document.getElementById('editProductId').value = productId;
-  document.getElementById('editBatchNumber').value = batchNumber;
+  document.getElementById('editInvoiceNumber').value = invoiceNumber;
   document.getElementById('editOrderQuantity').value = quantity;
+  document.getElementById('editProductInfo').value = productName;
+  document.getElementById('editDosageInfo').value = dosage || '';
+  document.getElementById('editUnitInfo').value = unit || '';
   
   // Set customer dropdown
   const customerSelect = document.getElementById('editCustomer');
@@ -304,6 +292,9 @@ function openEditOrderModal(orderId, productId, batchNumber, quantity, customer)
     otherInput.value = customer;
   }
   
+  // Fetch available quantity for the selected invoice
+  updateEditProductInfo();
+  
   document.getElementById('editOrderModal').style.display = 'block';
 }
   
@@ -311,26 +302,7 @@ function closeEditOrderModal() {
   document.getElementById('editOrderModal').style.display = 'none';
 }
 
-document.getElementById('editOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const orderId = document.getElementById('editOrderId').value;
-  const productId = document.getElementById('editProductId').value;
-  const batchNumber = document.getElementById('editBatchNumber').value;
-  const quantity = document.getElementById('editOrderQuantity').value;
-  const customer = document.getElementById('editCustomer').value;
-
-  fetch(`/edit-order/${orderId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId, batch_number: batchNumber, order_quantity: quantity, customer: customer })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  });
-});
-
+// Toggle other customer input
 function toggleOtherCustomer(type) {
   const customerSelect = document.getElementById(type === 'add' ? 'addCustomer' : 'editCustomer');
   const otherGroup = document.getElementById(type === 'add' ? 'addOtherCustomerGroup' : 'editOtherCustomerGroup');
@@ -342,93 +314,7 @@ function toggleOtherCustomer(type) {
   }
 }
 
-// Update add order form submission to handle "Other" option
-document.getElementById('addOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  
-  let customerValue;
-  const customerSelect = document.getElementById('addCustomer');
-  
-  // If "Other" is selected, use the custom input value
-  if (customerSelect.value === '__other__') {
-    const otherCustomer = document.getElementById('addOtherCustomerInput').value;
-    if (otherCustomer.trim() === '') {
-      alert('Please enter a customer name');
-      return;
-    }
-    customerValue = otherCustomer;
-  } else {
-    customerValue = customerSelect.value;
-  }
-  
-  const productId = parseInt(document.getElementById('addProductId').value);
-  const batchNumber = document.getElementById('addBatchNumber').value;
-  const quantity = parseInt(document.getElementById('addOrderQuantity').value);
-
-  if(isNaN(productId) || isNaN(quantity) || !batchNumber || !customerValue) {
-    alert('Please fill all fields correctly.');
-    return;
-  }
-
-  fetch('/add-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      product_id: productId, 
-      batch_number: batchNumber, 
-      order_quantity: quantity, 
-      customer: customerValue 
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  });
-});
-
-// Update edit order form submission to handle "Other" option
-document.getElementById('editOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  
-  let customerValue;
-  const customerSelect = document.getElementById('editCustomer');
-  
-  // If "Other" is selected, use the custom input value
-  if (customerSelect.value === '__other__') {
-    const otherCustomer = document.getElementById('editOtherCustomerInput').value;
-    if (otherCustomer.trim() === '') {
-      alert('Please enter a customer name');
-      return;
-    }
-    customerValue = otherCustomer;
-  } else {
-    customerValue = customerSelect.value;
-  }
-  
-  const orderId = document.getElementById('editOrderId').value;
-  const productId = document.getElementById('editProductId').value;
-  const batchNumber = document.getElementById('editBatchNumber').value;
-  const quantity = document.getElementById('editOrderQuantity').value;
-
-  fetch(`/edit-order/${orderId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      product_id: productId, 
-      batch_number: batchNumber, 
-      order_quantity: quantity, 
-      customer: customerValue 
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  });
-});
-
-// Add new function to fetch product info when invoice is selected
+// Update product info when invoice is selected (for add order)
 function updateProductInfo() {
   const invoiceSelect = document.getElementById('addInvoiceNumber');
   const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
@@ -468,6 +354,7 @@ function updateProductInfo() {
     });
 }
 
+// Update product info when invoice is selected (for edit order)
 function updateEditProductInfo() {
   const invoiceSelect = document.getElementById('editInvoiceNumber');
   const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
@@ -507,121 +394,104 @@ function updateEditProductInfo() {
     });
 }
 
-// Update the openEditOrderModal function
-function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit) {
-  document.getElementById('editOrderId').value = orderId;
-  document.getElementById('editInvoiceNumber').value = invoiceNumber;
-  document.getElementById('editOrderQuantity').value = quantity;
-  document.getElementById('editProductInfo').value = productName;
-  document.getElementById('editDosageInfo').value = dosage || '';
-  document.getElementById('editUnitInfo').value = unit || '';
-  
-  // Set customer dropdown
-  const customerSelect = document.getElementById('editCustomer');
-  const otherGroup = document.getElementById('editOtherCustomerGroup');
-  const otherInput = document.getElementById('editOtherCustomerInput');
-  
-  // Try to find the customer in the options
-  let found = false;
-  for (let option of customerSelect.options) {
-    if (option.textContent === customer) {
-      customerSelect.value = option.value;
-      found = true;
-      otherGroup.style.display = 'none';
-      break;
-    }
-  }
-  
-  // If customer not found in the list, show "Other" input
-  if (!found) {
-    customerSelect.value = '__other__';
-    otherGroup.style.display = 'block';
-    otherInput.value = customer;
-  }
-  
-  // Fetch available quantity for the selected invoice
-  updateEditProductInfo();
-  
-  document.getElementById('editOrderModal').style.display = 'block';
-}
-  
-  // If customer not found in the list, show "Other" input
-  if (!found) {
-    customerSelect.value = '__other__';
-    otherGroup.style.display = 'block';
-    otherInput.value = customer;
-  }
-  
-  // Fetch available quantity for the selected invoice
-  updateEditProductInfo();
-  
-  document.getElementById('editOrderModal').style.display = 'block';
-}
+// Form submission handlers
+document.addEventListener('DOMContentLoaded', function() {
+  // Add Order Form Submission
+  const addOrderForm = document.getElementById('addOrderForm');
+  if (addOrderForm) {
+    addOrderForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      let customerValue;
+      const customerSelect = document.getElementById('addCustomer');
+      
+      // If "Other" is selected, use the custom input value
+      if (customerSelect.value === '__other__') {
+        const otherCustomer = document.getElementById('addOtherCustomerInput').value;
+        if (otherCustomer.trim() === '') {
+          alert('Please enter a customer name');
+          return;
+        }
+        customerValue = otherCustomer;
+      } else {
+        customerValue = customerSelect.value;
+      }
+      
+      const invoiceNumber = document.getElementById('addInvoiceNumber').value;
+      const quantity = parseInt(document.getElementById('addOrderQuantity').value);
 
-// Update form submissions to use invoice_number
-document.getElementById('addOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const invoiceNumber = document.getElementById('addInvoiceNumber').value;
-  const quantity = parseInt(document.getElementById('addOrderQuantity').value);
-  const customer = document.getElementById('addCustomer').value;
+      if(!invoiceNumber || isNaN(quantity) || !customerValue) {
+        alert('Please fill all fields correctly.');
+        return;
+      }
 
-  if(!invoiceNumber || isNaN(quantity) || !customer) {
-    alert('Please fill all fields correctly.');
-    return;
+      fetch('/add-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          invoice_number: invoiceNumber, 
+          order_quantity: quantity, 
+          customer: customerValue 
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if(data.success) location.reload();
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Error: ' + err);
+      });
+    });
   }
 
-  fetch('/add-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ invoice_number: invoiceNumber, order_quantity: quantity, customer: customer })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  })
-  .catch(err => alert('Error: ' + err));
+  // Edit Order Form Submission
+  const editOrderForm = document.getElementById('editOrderForm');
+  if (editOrderForm) {
+    editOrderForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      let customerValue;
+      const customerSelect = document.getElementById('editCustomer');
+      
+      // If "Other" is selected, use the custom input value
+      if (customerSelect.value === '__other__') {
+        const otherCustomer = document.getElementById('editOtherCustomerInput').value;
+        if (otherCustomer.trim() === '') {
+          alert('Please enter a customer name');
+          return;
+        }
+        customerValue = otherCustomer;
+      } else {
+        customerValue = customerSelect.value;
+      }
+      
+      const orderId = document.getElementById('editOrderId').value;
+      const invoiceNumber = document.getElementById('editInvoiceNumber').value;
+      const quantity = document.getElementById('editOrderQuantity').value;
+
+      fetch(`/edit-order/${orderId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          invoice_number: invoiceNumber, 
+          order_quantity: quantity, 
+          customer: customerValue 
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if(data.success) location.reload();
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Error: ' + err);
+      });
+    });
+  }
 });
-
-document.getElementById('editOrderForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const orderId = document.getElementById('editOrderId').value;
-  const invoiceNumber = document.getElementById('editInvoiceNumber').value;
-  const quantity = document.getElementById('editOrderQuantity').value;
-  const customer = document.getElementById('editCustomer').value;
-
-  fetch(`/edit-order/${orderId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ invoice_number: invoiceNumber, order_quantity: quantity, customer: customer })
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    if(data.success) location.reload();
-  })
-  .catch(err => alert('Error: ' + err));
-});
-
-// Update filter function to include invoice number
-function applyOrderFilters() {
-  const searchValue = document.getElementById("searchOrders").value.toLowerCase();
-  const invoiceValue = document.getElementById("invoiceFilter") ? document.getElementById("invoiceFilter").value.toLowerCase() : '';
-  const dateValue = document.getElementById("dateFilter").value;
-
-  const rows = document.querySelectorAll("#ordersTable tbody tr");
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase();
-    const rowDate = row.getAttribute("data-date");
-
-    const matchesSearch = text.includes(searchValue);
-    const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
-    const matchesDate = dateValue === "" || rowDate === dateValue;
-
-    row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
-  });
-}
 
 // Delete order
 function deleteOrder(orderId) {
@@ -631,11 +501,33 @@ function deleteOrder(orderId) {
       .then(data => {
         alert(data.message);
         if(data.success) location.reload();
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('Error deleting order: ' + err);
       });
   }
 }
+
+// Event listeners for search and filter
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchOrders');
+  const invoiceFilter = document.getElementById('invoiceFilter');
+  const dateFilter = document.getElementById('dateFilter');
+  
+  if (searchInput) {
+    searchInput.addEventListener('keyup', applyOrderFilters);
+  }
+  if (invoiceFilter) {
+    invoiceFilter.addEventListener('keyup', applyOrderFilters);
+  }
+  if (dateFilter) {
+    dateFilter.addEventListener('change', applyOrderFilters);
+  }
+});
 </script>
 {% endblock %}
+
 
 
 
