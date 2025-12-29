@@ -1,3 +1,4 @@
+
 {% extends 'layout.html' %}
 {% block title %}MediSync - Purchases{% endblock %}
 
@@ -107,13 +108,7 @@
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
       <label>Supplier:</label><br>
-      <select name="supplier_id" required>
-        <option value="">Select Supplier</option>
-        {% for sup in suppliers %}
-          <option value="{{ sup[0] }}">{{ sup[1] }}</option>
-        {% endfor %}
-      </select>
-
+      <input type="text" name="supplier" required><br><br>
 
       <div style="text-align:right;">
         <button type="button" onclick="closePurchaseModal()">Cancel</button>
@@ -223,8 +218,8 @@ function editPurchase(id) {
   const productText = row.cells[2].textContent; // Product Name
   const quantity = row.cells[3].textContent;    // Quantity
   const expiry = row.cells[5].textContent;      // Expiration Date
-  const supplierName = row.cells[1].textContent.trim();
-  
+  const supplier = row.cells[1].textContent;    // Supplier
+
   const form = document.getElementById("purchaseForm");
   form.action = '/edit-purchase/' + id;
 
@@ -235,8 +230,7 @@ function editPurchase(id) {
   form.product_id.value = [...form.product_id.options].find(o => o.textContent === productText).value;
   form.purchase_quantity.value = quantity;
   form.expiration_date.value = expiry;
-  form.supplier_id.value = [...form.supplier_id.options]
-  .find(o => o.textContent.trim() === supplierName)?.value;
+  form.supplier.value = supplier;
 
   openPurchaseModal();
 }
@@ -324,5 +318,3 @@ function deletePurchase(id) {
 </script>
 
 {% endblock %}
-
-
