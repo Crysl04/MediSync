@@ -132,20 +132,17 @@
              oninput="fetchProductsForInvoice('add')">
       <br><br>
 
-      <!-- NEW: Product selection dropdown (initially hidden) -->
+      <!-- Product selection dropdown (initially hidden) -->
       <div id="addProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
         <select name="product_id" id="addProductSelect" 
-                onchange="updateProductInfoForAdd()" 
+                onchange="updateAvailableQuantityForAdd()" 
                 required>
           <option value="">Select a product</option>
           <!-- Products will be populated by JavaScript -->
         </select>
         <br><br>
       </div>
-
-      <label>Product Information:</label><br>
-      <input type="text" id="addProductInfo" readonly><br><br>
 
       <label>Available Quantity:</label><br>
       <input type="text" id="addAvailableQty" readonly><br><br>
@@ -190,20 +187,17 @@
              oninput="fetchProductsForInvoice('edit')">
       <br><br>
 
-      <!-- NEW: Product selection dropdown (initially hidden) -->
+      <!-- Product selection dropdown (initially hidden) -->
       <div id="editProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
         <select name="product_id" id="editProductSelect" 
-                onchange="updateProductInfoForEdit()" 
+                onchange="updateAvailableQuantityForEdit()" 
                 required>
           <option value="">Select a product</option>
           <!-- Products will be populated by JavaScript -->
         </select>
         <br><br>
       </div>
-
-      <label>Product Information:</label><br>
-      <input type="text" id="editProductInfo" readonly><br><br>
 
       <label>Available Quantity:</label><br>
       <input type="text" id="editAvailableQty" readonly><br><br>
@@ -292,14 +286,14 @@ function openAddOrderModal() {
   document.getElementById('addOrderForm').reset();
   // Hide product selection group
   document.getElementById('addProductSelectGroup').style.display = 'none';
-  // Clear product info fields
-  document.getElementById('addProductInfo').value = '';
+  // Clear fields
   document.getElementById('addAvailableQty').value = '';
   document.getElementById('addOrderQuantity').value = '';
   document.getElementById('addCustomer').selectedIndex = 0;
   document.getElementById('addOtherCustomerGroup').style.display = 'none';
   // Clear product dropdown
   document.getElementById('addProductSelect').innerHTML = '<option value="">Select a product</option>';
+  currentProductsForAdd = [];
 }
 
 function closeAddOrderModal() { 
@@ -320,7 +314,6 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
   editInvoiceInput.setAttribute('data-old-quantity', quantity);
   
   document.getElementById('editOrderQuantity').value = quantity;
-  document.getElementById('editProductInfo').value = productName;
   
   // Set customer dropdown
   const customerSelect = document.getElementById('editCustomer');
@@ -390,10 +383,8 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
     productSelect.innerHTML = '<option value="">Select a product</option>';
     
     if (type === 'add') {
-      document.getElementById('addProductInfo').value = '';
       document.getElementById('addAvailableQty').value = '';
     } else {
-      document.getElementById('editProductInfo').value = '';
       document.getElementById('editAvailableQty').value = '';
     }
     return;
@@ -418,11 +409,20 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
         data.products.forEach(product => {
           const option = document.createElement('option');
           option.value = product.product_id;
-          option.textContent = `${product.product_name}${product.dosage ? ` (${product.dosage})` : ''} - Available: ${product.remaining_quantity} ${product.unit_name || ''}`;
+          // Format: "Product Name (Dosage) [Unit]"
+          let displayText = product.product_name;
+          if (product.dosage) {
+            displayText += ` (${product.dosage})`;
+          }
+          if (product.unit_name) {
+            displayText += ` [${product.unit_name}]`;
+          }
+          option.textContent = displayText;
           option.setAttribute('data-dosage', product.dosage || '');
           option.setAttribute('data-unit', product.unit_name || '');
           option.setAttribute('data-remaining', product.remaining_quantity);
           option.setAttribute('data-batch', product.batch_number);
+          option.setAttribute('data-product-name', product.product_name);
           productSelect.appendChild(option);
           
           // Store product data in array for later use
@@ -455,7 +455,7 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
           
           if (foundIndex !== -1) {
             productSelect.selectedIndex = foundIndex + 1; // +1 because of the "Select a product" option
-            updateProductInfoForEdit();
+            updateAvailableQuantityForEdit();
           }
         }
         
@@ -466,10 +466,8 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
         productSelect.innerHTML = '<option value="">Select a product</option>';
         
         if (type === 'add') {
-          document.getElementById('addProductInfo').value = '';
           document.getElementById('addAvailableQty').value = '';
         } else {
-          document.getElementById('editProductInfo').value = '';
           document.getElementById('editAvailableQty').value = '';
         }
         
@@ -483,37 +481,29 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
       productSelect.innerHTML = '<option value="">Select a product</option>';
       
       if (type === 'add') {
-        document.getElementById('addProductInfo').value = '';
         document.getElementById('addAvailableQty').value = '';
       } else {
-        document.getElementById('editProductInfo').value = '';
         document.getElementById('editAvailableQty').value = '';
       }
     });
 }
 
-// Update product info when a product is selected (Add modal)
-function updateProductInfoForAdd() {
+// Update available quantity when a product is selected (Add modal)
+function updateAvailableQuantityForAdd() {
   const productSelect = document.getElementById('addProductSelect');
   const selectedIndex = productSelect.selectedIndex;
   
   if (selectedIndex > 0) {
     const selectedOption = productSelect.options[selectedIndex];
-    const productName = productSelect.options[selectedIndex].text.split(' - ')[0];
-    const dosage = selectedOption.getAttribute('data-dosage');
-    const unit = selectedOption.getAttribute('data-unit');
     const remaining = selectedOption.getAttribute('data-remaining');
-    
-    document.getElementById('addProductInfo').value = `${productName}${dosage ? ` (${dosage})` : ''} ${unit ? `[${unit}]` : ''}`;
     document.getElementById('addAvailableQty').value = remaining;
   } else {
-    document.getElementById('addProductInfo').value = '';
     document.getElementById('addAvailableQty').value = '';
   }
 }
 
-// Update product info when a product is selected (Edit modal)
-function updateProductInfoForEdit() {
+// Update available quantity when a product is selected (Edit modal)
+function updateAvailableQuantityForEdit() {
   const productSelect = document.getElementById('editProductSelect');
   const selectedIndex = productSelect.selectedIndex;
   const oldInvoice = document.getElementById('editInvoiceNumber').getAttribute('data-old-invoice');
@@ -522,9 +512,6 @@ function updateProductInfoForEdit() {
   
   if (selectedIndex > 0) {
     const selectedOption = productSelect.options[selectedIndex];
-    const productName = productSelect.options[selectedIndex].text.split(' - ')[0];
-    const dosage = selectedOption.getAttribute('data-dosage');
-    const unit = selectedOption.getAttribute('data-unit');
     const remaining = parseInt(selectedOption.getAttribute('data-remaining'));
     
     let available = remaining;
@@ -534,10 +521,8 @@ function updateProductInfoForEdit() {
       available += oldQuantity;
     }
     
-    document.getElementById('editProductInfo').value = `${productName}${dosage ? ` (${dosage})` : ''} ${unit ? `[${unit}]` : ''}`;
     document.getElementById('editAvailableQty').value = available;
   } else {
-    document.getElementById('editProductInfo').value = '';
     document.getElementById('editAvailableQty').value = '';
   }
 }
@@ -590,10 +575,17 @@ function setupFormHandlers() {
         return;
       }
       
-      // Get batch number from selected product
+      // Get batch number and product name from selected product
       const selectedProduct = currentProductsForAdd.find(p => p.product_id == productId);
       if (!selectedProduct) {
         alert('Please select a valid product.');
+        return;
+      }
+      
+      // Validate quantity
+      const availableQty = parseInt(document.getElementById('addAvailableQty').value);
+      if (quantity > availableQty) {
+        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
         return;
       }
       
@@ -604,6 +596,9 @@ function setupFormHandlers() {
           invoice_number: invoiceNumber, 
           product_id: productId,
           batch_number: selectedProduct.batch_number,
+          product_name: selectedProduct.product_name,
+          dosage: selectedProduct.dosage,
+          unit_name: selectedProduct.unit_name,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -645,17 +640,24 @@ function setupFormHandlers() {
       const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
       const productSelect = document.getElementById('editProductSelect');
       const productId = productSelect.value;
-      const quantity = document.getElementById('editOrderQuantity').value;
+      const quantity = parseInt(document.getElementById('editOrderQuantity').value);
 
-      if (!invoiceNumber || !productId) {
-        alert('Please select a valid invoice and product.');
+      if (!invoiceNumber || !productId || isNaN(quantity)) {
+        alert('Please fill all fields correctly.');
         return;
       }
       
-      // Get batch number from selected product
+      // Get batch number and product name from selected product
       const selectedProduct = currentProductsForEdit.find(p => p.product_id == productId);
       if (!selectedProduct) {
         alert('Please select a valid product.');
+        return;
+      }
+      
+      // Validate quantity
+      const availableQty = parseInt(document.getElementById('editAvailableQty').value);
+      if (quantity > availableQty) {
+        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
         return;
       }
       
@@ -666,6 +668,9 @@ function setupFormHandlers() {
           invoice_number: invoiceNumber, 
           product_id: productId,
           batch_number: selectedProduct.batch_number,
+          product_name: selectedProduct.product_name,
+          dosage: selectedProduct.dosage,
+          unit_name: selectedProduct.unit_name,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -717,6 +722,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
