@@ -54,41 +54,43 @@
   <thead>
     <tr>
       <th>Invoice Number</th>
-      <th>Delivery Date</th>
-      <th>Customer</th>
+      <th>Date Received</th>
+      <th>Supplier</th>
       <th>Product Name</th>
       <th>Dosage</th>
+      <th>Batch Number</th>
       <th>Quantity</th>
-      <th>Qty per Box</th>
       <th>Unit</th>
+      <th>Qty per Box<th>
+      <th>Expiration Date</th>
+      <th>Status</th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
-    {% if orders %}
-      {% for order in orders %}
-        <tr data-order-id="{{ order[0] }}" 
-            data-invoice="{{ order[6] }}"
-            data-quantity="{{ order[2] }}" 
-            data-date="{{ order[4] }}" 
-            data-customer="{{ order[5] }}">
-          <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
-          <td>{{ order[4] }}</td> <!-- Order Date -->
-          <td>{{ order[5] }}</td> <!-- Customer -->
-          <td>{{ order[1] }}</td> <!-- Product Name -->
-          <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
-          <td>{{ order[2] }}</td> <!-- Quantity -->
-          <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
-          <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
+    {% if purchases %}
+      {% for purchase in purchases %}
+        <tr data-purchase-id="{{ purchase[0] }}" data-product-id="{{ purchase[1] }}" data-quantity-per-box="{{ purchase[12] if purchase[12] else '1' }}">
+          <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td> <!-- Invoice Number -->
+          <td>{{ purchase[9] }}</td> <!-- Purchase Date -->
+          <td>{{ purchase[10] }}</td> <!-- Supplier -->
+          <td>{{ purchase[1] }}</td> <!-- Product Name -->
+          <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
+          <td>{{ purchase[3] }}</td> <!-- Batch Number -->
+          <td>{{ purchase[4] }}</td> <!-- Quantity -->
+          <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
+          <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!--QtyPerBox -->
+          <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
+          <td>{{ purchase[8] }}</td> <!-- Status -->
           <td>
-            <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}', '{{ order[9] if order[9] else 1 }}')">Edit</button>
-            <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
+            <button onclick="editPurchase('{{ purchase[0] }}')">Edit</button>
+            <button onclick="deletePurchase('{{ purchase[0] }}')">Delete</button>
           </td>
         </tr>
       {% endfor %}
     {% else %}
       <tr>
-        <td colspan="9" style="text-align: center;">No orders found</td>
+        <td colspan="11" style="text-align:center;">No purchases found</td>
       </tr>
     {% endif %}
   </tbody>
@@ -566,4 +568,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
-
