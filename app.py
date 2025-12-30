@@ -816,10 +816,9 @@ def edit_order(order_id):
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-
         c = conn.cursor()
 
-        # Get old order info
+        # Get old order info including the old invoice number
         c.execute('SELECT product_id, batch_number, order_quantity, invoice_number FROM "Order" WHERE order_id=%s', (order_id,))
         old_order = c.fetchone()
         if not old_order:
@@ -827,45 +826,90 @@ def edit_order(order_id):
 
         old_product_id, old_batch, old_quantity, old_invoice = old_order
 
-        # 1️⃣ Update remaining quantity in old purchase (if invoice changed)
+        # Check if invoice number changed
         if old_invoice != invoice_number:
+            # If invoice changed, we need to:
+            # 1. Add back old quantity to old purchase
+            # 2. Deduct new quantity from new purchase
+            
+            # Add back old quantity to old purchase
             c.execute("""UPDATE Purchase
                          SET remaining_quantity = remaining_quantity + %s
                          WHERE invoice_number=%s""",
                       (old_quantity, old_invoice))
-
-        # Get new purchase info
-        c.execute("""
-            SELECT product_id, batch_number, remaining_quantity 
-            FROM purchase 
-            WHERE invoice_number = %s
-        """, (invoice_number,))
-        new_purchase_info = c.fetchone()
-        
-        if not new_purchase_info:
-            return jsonify({'success': False, 'message': 'Invalid invoice number'})
-        
-        new_product_id, new_batch_number, remaining_quantity = new_purchase_info
-        
-        if remaining_quantity < new_quantity:
-            return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
-
-        # 2️⃣ Update order
-        customer = data.get('customer')
-        c.execute("""
-            UPDATE "Order"
-            SET product_id=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s
-            WHERE order_id=%s
-        """, (new_product_id, new_batch_number, new_quantity, customer, invoice_number, order_id))
-
-        # 3️⃣ Deduct from new purchase remaining_quantity
-        c.execute("""UPDATE Purchase
-                     SET remaining_quantity = remaining_quantity - %s
-                     WHERE invoice_number=%s""",
-                  (new_quantity, invoice_number))
+            
+            # Get new purchase info for validation
+            c.execute("""
+                SELECT product_id, batch_number, remaining_quantity 
+                FROM purchase 
+                WHERE invoice_number = %s
+            """, (invoice_number,))
+            new_purchase_info = c.fetchone()
+            
+            if not new_purchase_info:
+                return jsonify({'success': False, 'message': 'Invalid invoice number'})
+            
+            new_product_id, new_batch_number, remaining_quantity = new_purchase_info
+            
+            # Check if new purchase has enough stock
+            if remaining_quantity < new_quantity:
+                return jsonify({'success': False, 'message': f'Not enough stock in new invoice. Available: {remaining_quantity}'})
+            
+            # Deduct new quantity from new purchase
+            c.execute("""UPDATE Purchase
+                         SET remaining_quantity = remaining_quantity - %s
+                         WHERE invoice_number=%s""",
+                      (new_quantity, invoice_number))
+            
+            # Update order with new invoice details
+            customer = data.get('customer')
+            c.execute("""
+                UPDATE "Order"
+                SET product_id=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s
+                WHERE order_id=%s
+            """, (new_product_id, new_batch_number, new_quantity, customer, invoice_number, order_id))
+            
+        else:
+            # Same invoice - adjust quantity in the same purchase
+            # First, add back the old quantity
+            c.execute("""UPDATE Purchase
+                         SET remaining_quantity = remaining_quantity + %s
+                         WHERE invoice_number=%s""",
+                      (old_quantity, invoice_number))
+            
+            # Get current remaining after adding back old quantity
+            c.execute("""
+                SELECT remaining_quantity 
+                FROM purchase 
+                WHERE invoice_number = %s
+            """, (invoice_number,))
+            purchase_info = c.fetchone()
+            
+            if not purchase_info:
+                return jsonify({'success': False, 'message': 'Purchase not found'})
+            
+            current_remaining = purchase_info[0]
+            
+            # Check if there's enough stock for the new quantity
+            if current_remaining < new_quantity:
+                return jsonify({'success': False, 'message': f'Not enough stock. Available after returning old quantity: {current_remaining}'})
+            
+            # Deduct the new quantity
+            c.execute("""UPDATE Purchase
+                         SET remaining_quantity = remaining_quantity - %s
+                         WHERE invoice_number=%s""",
+                      (new_quantity, invoice_number))
+            
+            # Update order with new quantity
+            customer = data.get('customer')
+            c.execute("""
+                UPDATE "Order"
+                SET order_quantity=%s, customer=%s
+                WHERE order_id=%s
+            """, (new_quantity, customer, order_id))
 
         conn.commit()
-        log_activity(session['username'], f"Edited stock-out ID {order_id}")
+        log_activity(session['username'], f"Edited order ID {order_id}")
 
         return jsonify({'success': True, 'message': 'Order updated successfully'})
     except Exception as e:
