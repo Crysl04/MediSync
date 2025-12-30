@@ -123,7 +123,7 @@
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
     <h2>Add Order</h2>
-    <form id="addOrderForm" method="POST">
+    <form id="addOrderForm">
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" id="addInvoiceNumber" 
              list="invoiceNumbersList" 
@@ -176,7 +176,7 @@
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
     <h2>Edit Order</h2>
-    <form id="editOrderForm" method="POST">
+    <form id="editOrderForm">
       <input type="hidden" name="order_id" id="editOrderId">
 
       <label>Invoice Number:</label><br>
@@ -550,10 +550,13 @@ function setupFormHandlers() {
   }
   
   // Add Order Form Submission
-  const addOrderForm = document.getElementById('addOrderForm');
+    const addOrderForm = document.getElementById('addOrderForm');
   if (addOrderForm) {
     addOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault();
+      e.preventDefault(); // Make sure this is the first line
+      e.stopPropagation(); // Also add this to prevent any bubbling
+      
+      console.log("Add order form submitted");
       
       let customerValue;
       const customerSelect = document.getElementById('addCustomer');
@@ -594,6 +597,12 @@ function setupFormHandlers() {
         return;
       }
       
+      // Disable the submit button to prevent double submission
+      const submitButton = this.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = 'Processing...';
+      submitButton.disabled = true;
+      
       fetch('/add-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -604,7 +613,7 @@ function setupFormHandlers() {
           product_name: selectedProduct.product_name,
           dosage: selectedProduct.dosage,
           unit_name: selectedProduct.unit_name,
-          quantity_per_box: selectedProduct.quantity_per_box,  // Add this
+          quantity_per_box: selectedProduct.quantity_per_box,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -612,12 +621,21 @@ function setupFormHandlers() {
       .then(res => res.json())
       .then(data => {
         alert(data.message);
-        if(data.success) location.reload();
+        if(data.success) {
+          location.reload();
+        } else {
+          submitButton.textContent = originalText;
+          submitButton.disabled = false;
+        }
       })
       .catch(err => {
         console.error('Error:', err);
         alert('Error: ' + err);
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
       });
+      
+      return false; // Additional prevention
     });
   }
 
@@ -625,7 +643,10 @@ function setupFormHandlers() {
   const editOrderForm = document.getElementById('editOrderForm');
   if (editOrderForm) {
     editOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault();
+      e.preventDefault(); // Make sure this is the first line
+      e.stopPropagation(); // Also add this to prevent any bubbling
+      
+      console.log("Edit order form submitted");
       
       let customerValue;
       const customerSelect = document.getElementById('editCustomer');
@@ -667,6 +688,12 @@ function setupFormHandlers() {
         return;
       }
       
+      // Disable the submit button to prevent double submission
+      const submitButton = this.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = 'Processing...';
+      submitButton.disabled = true;
+      
       fetch(`/edit-order/${orderId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -677,7 +704,7 @@ function setupFormHandlers() {
           product_name: selectedProduct.product_name,
           dosage: selectedProduct.dosage,
           unit_name: selectedProduct.unit_name,
-          quantity_per_box: selectedProduct.quantity_per_box,  // Add this
+          quantity_per_box: selectedProduct.quantity_per_box,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -685,12 +712,21 @@ function setupFormHandlers() {
       .then(res => res.json())
       .then(data => {
         alert(data.message);
-        if(data.success) location.reload();
+        if(data.success) {
+          location.reload();
+        } else {
+          submitButton.textContent = originalText;
+          submitButton.disabled = false;
+        }
       })
       .catch(err => {
         console.error('Error:', err);
         alert('Error: ' + err);
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
       });
+      
+      return false; // Additional prevention
     });
   }
   
@@ -729,6 +765,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
