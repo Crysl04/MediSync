@@ -370,8 +370,7 @@ function updateProductInfo() {
 function updateEditProductInfo() {
   const invoiceInput = document.getElementById('editInvoiceNumber');
   const invoiceNumber = invoiceInput.value.trim();
-  const oldInvoice = invoiceInput.getAttribute('data-old-invoice');
-  const oldQuantity = parseInt(invoiceInput.getAttribute('data-old-quantity') || 0);
+  const orderId = document.getElementById('editOrderId').value;
   
   if (!invoiceNumber) {
     document.getElementById('editProductInfo').value = '';
@@ -387,8 +386,8 @@ function updateEditProductInfo() {
     document.getElementById('editProductInfo').value = '';
   }
   
-  // Fetch available quantity from server
-  fetch(`/get-purchase-info/${invoiceNumber}`)
+  // Fetch adjusted available quantity from server (includes old order quantity)
+  fetch(`/get-purchase-info-edit/${invoiceNumber}/${orderId}`)
     .then(res => {
       if (!res.ok) {
         throw new Error('Network response was not ok');
@@ -397,15 +396,8 @@ function updateEditProductInfo() {
     })
     .then(data => {
       if (data.success) {
-        let available = data.remaining_quantity;
-        
-        // If editing the same invoice, add back the old order quantity
-        // because it will be available for reallocation
-        if (invoiceNumber === oldInvoice) {
-          available += oldQuantity;
-        }
-        
-        document.getElementById('editAvailableQty').value = available;
+        // Show the adjusted remaining (which includes the old order quantity)
+        document.getElementById('editAvailableQty').value = data.adjusted_remaining;
       } else {
         alert(data.message);
         document.getElementById('editAvailableQty').value = '';
@@ -575,4 +567,5 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
