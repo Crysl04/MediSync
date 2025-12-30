@@ -51,50 +51,52 @@
 
   <div class="purchases-table">
   <table id="purchasesTable">
-  <thead>
-    <tr>
-      <th>Invoice Number</th>
-      <th>Date Received</th>
-      <th>Supplier</th>
-      <th>Product Name</th>
-      <th>Dosage</th>
-      <th>Batch Number</th>
-      <th>Quantity</th>
-      <th>Unit</th>
-      <th>Expiration Date</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% if purchases %}
-      {% for purchase in purchases %}
-        <tr data-purchase-id="{{ purchase[0] }}" data-product-id="{{ purchase[1] }}" data-quantity-per-box="{{ purchase[12] if purchase[12] else '1' }}">
-          <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td> <!-- Invoice Number -->
-          <td>{{ purchase[9] }}</td> <!-- Purchase Date -->
-          <td>{{ purchase[10] }}</td> <!-- Supplier -->
-          <td>{{ purchase[1] }}</td> <!-- Product Name -->
-          <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
-          <td>{{ purchase[3] }}</td> <!-- Batch Number -->
-          <td>{{ purchase[4] }}</td> <!-- Quantity -->
-          <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
-          <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
-          <td>{{ purchase[8] }}</td> <!-- Status -->
-          <td>
-            <button onclick="editPurchase('{{ purchase[0] }}')">Edit</button>
-            <button onclick="deletePurchase('{{ purchase[0] }}')">Delete</button>
-          </td>
-        </tr>
-      {% endfor %}
-    {% else %}
+    <thead>
       <tr>
-        <td colspan="11" style="text-align:center;">No purchases found</td>
+        <th>Invoice Number</th>
+        <th>Date Received</th>
+        <th>Supplier</th>
+        <th>Product Name</th>
+        <th>Dosage</th>
+        <th>Batch Number</th>
+        <th>Quantity</th>
+        <th>Qty/Box</th> <!-- New column header -->
+        <th>Unit</th>
+        <th>Expiration Date</th>
+        <th>Status</th>
+        <th>Actions</th>
       </tr>
-    {% endif %}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {% if purchases %}
+        {% for purchase in purchases %}
+          <tr data-purchase-id="{{ purchase[0] }}" data-product-id="{{ purchase[1] }}" data-quantity-per-box="{{ purchase[12] if purchase[12] else '1' }}">
+            <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td> <!-- Invoice Number -->
+            <td>{{ purchase[9] }}</td> <!-- Purchase Date -->
+            <td>{{ purchase[10] }}</td> <!-- Supplier -->
+            <td>{{ purchase[1] }}</td> <!-- Product Name -->
+            <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
+            <td>{{ purchase[3] }}</td> <!-- Batch Number -->
+            <td>{{ purchase[4] }}</td> <!-- Quantity -->
+            <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!-- Qty per Box (NEW COLUMN) -->
+            <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
+            <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
+            <td>{{ purchase[8] }}</td> <!-- Status -->
+            <td>
+              <button onclick="editPurchase('{{ purchase[0] }}')">Edit</button>
+              <button onclick="deletePurchase('{{ purchase[0] }}')">Delete</button>
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="12" style="text-align:center;">No purchases found</td> <!-- Changed from 11 to 12 -->
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </div>
-
+  
 </main>
 
 <!-- Product Datalist (for the purchase modal) -->
@@ -182,6 +184,18 @@
   /* Highlight for invalid product selection */
   .product-invalid {
     border-color: #ff4444 !important;
+  }
+
+  /* Style for quantity per box column */
+  th:nth-child(8), td:nth-child(8) {
+    text-align: center;
+    width: 80px;
+  }
+  
+  /* Style for quantity column */
+  th:nth-child(7), td:nth-child(7) {
+    text-align: center;
+    width: 80px;
   }
 </style>
 
@@ -311,9 +325,9 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   const rows = document.querySelectorAll("#purchasesTable tbody tr");
 
   rows.forEach(row => {
-    const batch = row.cells[4].textContent.toLowerCase(); // Batch is now index 4
-    const status = row.cells[7].textContent.toLowerCase(); // Status is now index 7
-    const date = row.cells[1].textContent; // Date is now index 1
+    const batch = row.cells[5].textContent.toLowerCase(); // Batch is now index 5 (was 4)
+    const status = row.cells[10].textContent.toLowerCase(); // Status is now index 10 (was 7)
+    const date = row.cells[1].textContent; // Date remains index 1
 
     const matchBatch = !batchVal || batch.includes(batchVal);
     const matchStatus = !statusVal || status === statusVal;
@@ -360,9 +374,10 @@ function editPurchase(id) {
   const dosage = row.cells[4].textContent; // Dosage
   const batchNumber = row.cells[5].textContent; // Batch Number
   const quantity = row.cells[6].textContent; // Quantity
-  const unit = row.cells[7].textContent; // Unit
-  const expiry = row.cells[8].textContent; // Expiration Date
-  const status = row.cells[9].textContent; // Status
+  const qtyPerBox = row.cells[7].textContent; // Qty per Box (NEW)
+  const unit = row.cells[8].textContent; // Unit (was 7)
+  const expiry = row.cells[9].textContent; // Expiration Date (was 8)
+  const status = row.cells[10].textContent; // Status (was 9)
   const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
@@ -420,6 +435,7 @@ function editPurchase(id) {
 
   openPurchaseModal();
 }
+
   
 function updatePurchaseProductInfo() {
   const productSearch = document.getElementById('productSearch');
@@ -566,4 +582,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
