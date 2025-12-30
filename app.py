@@ -956,14 +956,24 @@ def delete_order(order_id):
         if conn:
             conn.close()
 
-@app.route('/get-purchase-info/<invoice_number>')
+@app.route('/get-purchase-info-edit/<invoice_number>/<int:order_id>')
 @login_required
-def get_purchase_info(invoice_number):
+def get_purchase_info_edit(invoice_number, order_id):
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-
         c = conn.cursor()
+        
+        # Get the old order quantity
+        c.execute('SELECT order_quantity FROM "Order" WHERE order_id=%s', (order_id,))
+        old_order = c.fetchone()
+        
+        if not old_order:
+            return jsonify({'success': False, 'message': 'Order not found'})
+        
+        old_quantity = old_order[0]
+        
+        # Get purchase info
         c.execute("""
             SELECT pr.product_name, pu.remaining_quantity, pu.batch_number
             FROM purchase pu
@@ -973,10 +983,14 @@ def get_purchase_info(invoice_number):
         
         result = c.fetchone()
         if result:
+            # Add back the old quantity to show what's actually available for editing
+            adjusted_remaining = result[1] + old_quantity
+            
             return jsonify({
                 'success': True,
                 'product_name': result[0],
                 'remaining_quantity': result[1],
+                'adjusted_remaining': adjusted_remaining,  # This is what we show in edit form
                 'batch_number': result[2]
             })
         else:
