@@ -457,16 +457,16 @@ def orders():
         """)
         orders = c.fetchall()
         
+        # Get invoice data from purchase table, not order table
         c.execute("""
-            SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
-                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage
-            FROM "Order" o
-            ORDER BY o.order_date DESC
+            SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
+            FROM purchase pu
+            JOIN product pr ON pu.product_id = pr.id
+            LEFT JOIN unit u ON pr.unit_id = u.id
+            WHERE pu.remaining_quantity > 0 AND pu.invoice_number IS NOT NULL
+            ORDER BY pu.invoice_number ASC
         """)
         invoice_data = c.fetchall()
-        
-        # Create a list of just invoice numbers for compatibility if needed
-        invoice_numbers = [row[0] for row in invoice_data]
         
         # Your specific customer list
         customers = [
@@ -479,12 +479,11 @@ def orders():
         return render_template('orders.html', 
                              orders=orders, 
                              invoice_data=invoice_data,
-                             invoice_numbers=invoice_numbers,  # For compatibility
                              customers=customers)
     except Exception as e:
         print(f"Error in orders route: {str(e)}")
         flash(f'Error loading orders: {str(e)}', 'error')
-        return render_template('orders.html', orders=[], invoice_data=[], invoice_numbers=[], customers=[])
+        return render_template('orders.html', orders=[], invoice_data=[], customers=[])
     finally:
         if conn is not None:
             conn.close()
