@@ -802,7 +802,10 @@ def add_order():
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
 
+    print(f"DEBUG: /add-order called with: invoice={invoice_number}, product_id={product_id}, batch={batch_number}, qty={order_quantity}")
+
     if not invoice_number or not product_id or not batch_number or order_quantity <= 0 or not customer:
+        print(f"DEBUG: Validation failed")
         return jsonify({'success': False, 'message': 'Invalid input'}), 400
 
     conn = None
@@ -820,13 +823,17 @@ def add_order():
         purchase_info = c.fetchone()
         
         if not purchase_info:
+            print(f"DEBUG: Purchase not found")
             return jsonify({'success': False, 'message': 'Invalid invoice number, product, or batch'})
         
         purchase_id, remaining_quantity = purchase_info
+        print(f"DEBUG: Purchase found: id={purchase_id}, remaining={remaining_quantity}")
         
         if remaining_quantity < order_quantity:
+            print(f"DEBUG: Not enough stock: {remaining_quantity} < {order_quantity}")
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
+        print(f"DEBUG: Inserting order...")
         # Insert order with all details including quantity_per_box
         c.execute("""
             INSERT INTO "Order" 
@@ -836,6 +843,7 @@ def add_order():
         """, (product_id, product_name, order_quantity, batch_number, 
               customer, invoice_number, unit_name, dosage, quantity_per_box))
         
+        print(f"DEBUG: Updating purchase remaining quantity...")
         # Update remaining quantity in purchase
         c.execute("""UPDATE Purchase
                      SET remaining_quantity = remaining_quantity - %s
@@ -845,8 +853,10 @@ def add_order():
         conn.commit()
         log_activity(session['username'], f"Added order: invoice {invoice_number}, product {product_name}, batch {batch_number}, qty {order_quantity}, qty/box {quantity_per_box}")
 
+        print(f"DEBUG: Order added successfully")
         return jsonify({'success': True, 'message': 'Order added successfully!'})
     except Exception as e:
+        print(f"DEBUG: Error: {str(e)}")
         if conn:
             conn.rollback()
         return jsonify({'success': False, 'message': f'Error adding order: {str(e)}'})
