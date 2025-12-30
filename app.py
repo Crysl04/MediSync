@@ -448,10 +448,10 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        # Now using stored unit_name and dosage from Order table
+        # Now using stored unit_name, dosage, and quantity_per_box from Order table
         c.execute("""
             SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
-                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage
+                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage, o.quantity_per_box
             FROM "Order" o
             ORDER BY o.order_date DESC
         """)
@@ -617,6 +617,7 @@ def add_purchase():
 
         product_id = request.form['product_id']
         purchase_quantity = int(request.form['purchase_quantity'])
+        quantity_per_box = int(request.form.get('quantity_per_box', 1))
         expiration_date = request.form['expiration_date']
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
@@ -640,13 +641,13 @@ def add_purchase():
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_name, dosage)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, unit_name, dosage, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_name, dosage))
+              supplier, invoice_number, unit_name, dosage, quantity_per_box))
 
         conn.commit()
-        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -657,12 +658,12 @@ def add_purchase():
         if conn:
             conn.close()
 
-
 @app.route('/edit-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
 def edit_purchase(purchase_id):
     product_id = request.form['product_id']
     new_purchase_quantity = int(request.form['purchase_quantity'])
+    quantity_per_box = int(request.form.get('quantity_per_box', 1))
     expiration_date = request.form['expiration_date']
     invoice_number = request.form.get('invoice_number', '')
 
@@ -694,10 +695,10 @@ def edit_purchase(purchase_id):
 
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s
+                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, quantity_per_box=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, 
-                   expiration_date, invoice_number, unit_name, dosage, purchase_id))
+                   expiration_date, invoice_number, unit_name, dosage, quantity_per_box, purchase_id))
         conn.commit()
         log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
@@ -753,7 +754,7 @@ def get_products_by_invoice(invoice_number):
         c = conn.cursor()
         c.execute("""
             SELECT pu.product_id, pr.product_name, pr.dosage, u.unit_name, 
-                   pu.batch_number, pu.remaining_quantity
+                   pu.batch_number, pu.remaining_quantity, pu.quantity_per_box
             FROM purchase pu
             JOIN product pr ON pu.product_id = pr.id
             LEFT JOIN unit u ON pr.unit_id = u.id
@@ -770,7 +771,8 @@ def get_products_by_invoice(invoice_number):
                 'dosage': row[2] if row[2] else '',
                 'unit_name': row[3] if row[3] else '',
                 'batch_number': row[4],
-                'remaining_quantity': row[5]
+                'remaining_quantity': row[5],
+                'quantity_per_box': row[6] or 1  # Default to 1 if null
             })
         
         if products:
@@ -796,6 +798,7 @@ def add_order():
     product_name = data.get('product_name')
     dosage = data.get('dosage', '')
     unit_name = data.get('unit_name', '')
+    quantity_per_box = int(data.get('quantity_per_box', 1))
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
 
@@ -824,14 +827,14 @@ def add_order():
         if remaining_quantity < order_quantity:
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
-        # Insert order with all details
+        # Insert order with all details including quantity_per_box
         c.execute("""
             INSERT INTO "Order" 
             (product_id, product_name, order_quantity, batch_number, 
-             customer, invoice_number, unit_name, dosage)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             customer, invoice_number, unit_name, dosage, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, product_name, order_quantity, batch_number, 
-              customer, invoice_number, unit_name, dosage))
+              customer, invoice_number, unit_name, dosage, quantity_per_box))
         
         # Update remaining quantity in purchase
         c.execute("""UPDATE Purchase
@@ -840,7 +843,7 @@ def add_order():
                   (order_quantity, purchase_id))
 
         conn.commit()
-        log_activity(session['username'], f"Added order: invoice {invoice_number}, product {product_name}, batch {batch_number}, qty {order_quantity}")
+        log_activity(session['username'], f"Added order: invoice {invoice_number}, product {product_name}, batch {batch_number}, qty {order_quantity}, qty/box {quantity_per_box}")
 
         return jsonify({'success': True, 'message': 'Order added successfully!'})
     except Exception as e:
@@ -850,7 +853,7 @@ def add_order():
     finally:
         if conn:
             conn.close()
-            
+
 @app.route('/edit-order/<int:order_id>', methods=['POST'])
 @login_required
 def edit_order(order_id):
@@ -858,6 +861,7 @@ def edit_order(order_id):
     invoice_number = data.get('invoice_number')
     product_id = data.get('product_id')
     batch_number = data.get('batch_number')
+    quantity_per_box = int(data.get('quantity_per_box', 1))
     new_quantity = int(data.get('order_quantity'))
 
     conn = None
@@ -908,7 +912,7 @@ def edit_order(order_id):
                          WHERE id=%s""",
                       (new_quantity, new_purchase_id))
             
-            # Update order with new details
+            # Update order with new details including quantity_per_box
             customer = data.get('customer')
             # Get product name for the new product
             c.execute("SELECT product_name FROM product WHERE id = %s", (product_id,))
@@ -917,9 +921,9 @@ def edit_order(order_id):
             
             c.execute("""
                 UPDATE "Order"
-                SET product_id=%s, product_name=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s
+                SET product_id=%s, product_name=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s, quantity_per_box=%s
                 WHERE order_id=%s
-            """, (product_id, product_name, batch_number, new_quantity, customer, invoice_number, order_id))
+            """, (product_id, product_name, batch_number, new_quantity, customer, invoice_number, quantity_per_box, order_id))
             
         else:
             # Same invoice and product/batch - adjust quantity in the same purchase
@@ -952,13 +956,13 @@ def edit_order(order_id):
                          WHERE invoice_number=%s AND product_id=%s AND batch_number=%s""",
                       (new_quantity, invoice_number, product_id, batch_number))
             
-            # Update order with new quantity
+            # Update order with new quantity and quantity_per_box
             customer = data.get('customer')
             c.execute("""
                 UPDATE "Order"
-                SET order_quantity=%s, customer=%s
+                SET order_quantity=%s, customer=%s, quantity_per_box=%s
                 WHERE order_id=%s
-            """, (new_quantity, customer, order_id))
+            """, (new_quantity, customer, quantity_per_box, order_id))
 
         conn.commit()
         log_activity(session['username'], f"Edited order ID {order_id}")
