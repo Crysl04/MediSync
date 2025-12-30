@@ -113,7 +113,7 @@
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2 id="modalTitle">Add Purchase</h2>
-    <form id="purchaseForm" method="POST" action="/add-purchase">
+    <form id="purchaseForm">
       <!-- Hidden field to store product_id -->
       <input type="hidden" name="product_id" id="productIdInput">
       
@@ -582,5 +582,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
