@@ -320,6 +320,10 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
   document.getElementById('editOrderModal').style.display = 'block';
 }
 
+function closeEditOrderModal() { 
+  document.getElementById('editOrderModal').style.display = 'none';
+}
+
 // Update product info when invoice is selected (for add order)
 function updateProductInfo() {
   const invoiceInput = document.getElementById('addInvoiceNumber');
@@ -567,5 +571,6 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
