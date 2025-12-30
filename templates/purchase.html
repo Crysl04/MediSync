@@ -1,5 +1,3 @@
-
-
 {% extends 'layout.html' %}
 {% block title %}MediSync - Purchases{% endblock %}
 
@@ -99,23 +97,36 @@
 
 </main>
 
+<!-- Product Datalist (for the purchase modal) -->
+<datalist id="productsList">
+  {% for prod in products %}
+    <option value="{{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} ({{ prod[3] if prod[3] else 'N/A' }})" 
+            data-id="{{ prod[0] }}" 
+            data-dosage="{{ prod[2] if prod[2] else '' }}" 
+            data-unit="{{ prod[3] if prod[3] else '' }}">
+  {% endfor %}
+</datalist>
+
 <!-- Add dosage and unit display fields to purchase modal -->
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2 id="modalTitle">Add Purchase</h2>
     <form id="purchaseForm" method="POST" action="/add-purchase">
+      <!-- Hidden field to store product_id -->
+      <input type="hidden" name="product_id" id="productIdInput">
+      
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
       <label>Product:</label><br>
-      <select name="product_id" id="productSelect" required onchange="updatePurchaseProductInfo()">
-        <option value="">Select Product</option>
-        {% for prod in products %}
-          <option value="{{ prod[0] }}" data-dosage="{{ prod[2] if prod[2] else '' }}" data-unit="{{ prod[3] if prod[3] else '' }}">
-            {{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} ({{ prod[3] if prod[3] else 'N/A' }})
-          </option>
-        {% endfor %}
-      </select><br><br>
+      <!-- Changed from select to searchable input with datalist -->
+      <input type="text" id="productSearch" 
+             list="productsList" 
+             placeholder="Type to search products..." 
+             autocomplete="off"
+             required 
+             oninput="updatePurchaseProductInfo()">
+      <br><br>
       
       <label>Purchase Quantity:</label><br>
       <input type="number" name="purchase_quantity" min="1" required><br><br>
@@ -160,24 +171,52 @@
     background-color: #f44336;
     color: white;
   }
+  /* Style for datalist dropdown */
+  datalist {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  /* Highlight for invalid product selection */
+  .product-invalid {
+    border-color: #ff4444 !important;
+  }
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const table = document.getElementById('purchasesTable');
-    const cells = table.getElementsByTagName('td');
-    
-    for (let cell of cells) {
-      cell.addEventListener('click', function() {
-        const allCells = table.getElementsByTagName('td');
-        for (let c of allCells) {
-          c.classList.remove('expanded');
-        }
-        
-        this.classList.toggle('expanded');
-      });
-    }
+// Create a map to store product data for quick lookup
+let productDataMap = {};
+
+// Initialize the product data map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Get all options from the datalist
+  const datalist = document.getElementById('productsList');
+  const options = datalist ? datalist.querySelectorAll('option') : [];
+  
+  // Populate the product data map
+  options.forEach(option => {
+    productDataMap[option.value] = {
+      id: option.getAttribute('data-id'),
+      dosage: option.getAttribute('data-dosage'),
+      unit: option.getAttribute('data-unit')
+    };
   });
+  
+  console.log('Product data map loaded:', productDataMap);
+  
+  const table = document.getElementById('purchasesTable');
+  const cells = table.getElementsByTagName('td');
+  
+  for (let cell of cells) {
+    cell.addEventListener('click', function() {
+      const allCells = table.getElementsByTagName('td');
+      for (let c of allCells) {
+        c.classList.remove('expanded');
+      }
+      
+      this.classList.toggle('expanded');
+    });
+  }
+});
 
 let isSubmitting = false;
 
@@ -187,6 +226,16 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   // Prevent double submission
   if (isSubmitting) {
     alert('Please wait, form is already submitting...');
+    return;
+  }
+  
+  // Validate product selection
+  const productSearch = document.getElementById('productSearch');
+  const productIdInput = document.getElementById('productIdInput');
+  
+  if (!productIdInput.value) {
+    alert('Please select a valid product from the list.');
+    productSearch.classList.add('product-invalid');
     return;
   }
   
@@ -280,6 +329,9 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     form.reset();
     document.getElementById("modalTitle").textContent = "Add Purchase";
     document.getElementById("modalSubmit").textContent = "Add";
+    document.getElementById('productIdInput').value = '';
+    document.getElementById('productSearch').value = '';
+    document.getElementById('productSearch').classList.remove('product-invalid');
   }
 }
 
@@ -288,8 +340,9 @@ function closePurchaseModal() {
   // Reset form when closing modal
   const form = document.getElementById("purchaseForm");
   form.reset();
-  document.getElementById('purchaseDosage').value = '';
-  document.getElementById('purchaseUnit').value = '';
+  document.getElementById('productIdInput').value = '';
+  document.getElementById('productSearch').value = '';
+  document.getElementById('productSearch').classList.remove('product-invalid');
   // Reset form action to add-purchase for next time
   form.action = '/add-purchase';
 }
@@ -314,16 +367,32 @@ function editPurchase(id) {
   document.getElementById("modalTitle").textContent = "Edit Purchase";
   document.getElementById("modalSubmit").textContent = "Update";
 
-  // Populate form fields - FIXED: Only set fields that actually exist
+  // Populate form fields
   form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
   
-  const productSelect = form.product_id;
-  for (let option of productSelect.options) {
-    if (option.textContent.includes(productText)) {
-      productSelect.value = option.value;
-      break;
+  // Set product search field
+  document.getElementById('productSearch').value = productText;
+  
+  // Find the product ID from the data map
+  const productSearchValue = productText;
+  let productId = '';
+  
+  // Try to find exact match first
+  if (productDataMap[productSearchValue]) {
+    productId = productDataMap[productSearchValue].id;
+  } else {
+    // Try partial match
+    for (const [key, value] of Object.entries(productDataMap)) {
+      if (key.includes(productText)) {
+        productId = value.id;
+        // Update the display to show full product name
+        document.getElementById('productSearch').value = key;
+        break;
+      }
     }
   }
+  
+  document.getElementById('productIdInput').value = productId;
   
   form.purchase_quantity.value = quantity;
   form.expiration_date.value = expiry;
@@ -348,13 +417,39 @@ function editPurchase(id) {
 }
   
 function updatePurchaseProductInfo() {
-  const productSelect = document.getElementById('productSelect');
-  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  const productSearch = document.getElementById('productSearch');
+  const productIdInput = document.getElementById('productIdInput');
+  const searchValue = productSearch.value.trim();
   
-  if (selectedOption.value) {
-    const dosage = selectedOption.getAttribute('data-dosage');
-    const unit = selectedOption.getAttribute('data-unit');
+  // Clear previous product ID
+  productIdInput.value = '';
+  
+  // Remove invalid class if present
+  productSearch.classList.remove('product-invalid');
+  
+  if (!searchValue) {
+    return;
+  }
+  
+  // Check if the product exists in our map
+  if (productDataMap[searchValue]) {
+    // Exact match found
+    productIdInput.value = productDataMap[searchValue].id;
   } else {
+    // Try to find a matching product
+    for (const [key, value] of Object.entries(productDataMap)) {
+      if (key.toLowerCase().includes(searchValue.toLowerCase())) {
+        // Found a match - set the full product name and ID
+        productSearch.value = key;
+        productIdInput.value = value.id;
+        break;
+      }
+    }
+    
+    // If still no match after trying partials, mark as invalid
+    if (!productIdInput.value) {
+      productSearch.classList.add('product-invalid');
+    }
   }
 }
 
@@ -380,6 +475,23 @@ function toggleOtherSupplier() {
     otherGroup.style.display = 'none';
   }
 }
+
+// Add keyboard navigation for product search
+document.addEventListener('DOMContentLoaded', function() {
+  const productSearch = document.getElementById('productSearch');
+  if (productSearch) {
+    productSearch.addEventListener('keydown', function(e) {
+      // If user presses Enter in the product field, prevent form submission
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        updatePurchaseProductInfo();
+      }
+    });
+    
+    // Also update when user selects from dropdown
+    productSearch.addEventListener('change', updatePurchaseProductInfo);
+  }
+});
 
   let currentSort = {
     column: 'id',
@@ -449,12 +561,3 @@ function toggleOtherSupplier() {
 </script>
 
 {% endblock %}
-
-
-
-
-
-
-
-
-
