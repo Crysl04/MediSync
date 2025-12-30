@@ -18,7 +18,7 @@
 
   <div class="products-controls">
     <div class="filter-btn">
-      <input type="text" id="searchOrders" placeholder="Search orders..." onkeyup="applyOrderFilters()" />
+      <input type="text" id="searchOrders" placeholder="Search orders..." />
       <button onclick="toggleOrderFilterOptions()">
         <img src="{{ url_for('static', filename='filter.png') }}" alt="Filter Icon" class="filter-icon">
         FILTER
@@ -27,11 +27,11 @@
         <div class="filter-group">
           <!-- Change "Batch Number" to "Invoice Number" -->
           <label>Invoice Number:</label>
-          <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." onkeyup="applyOrderFilters()" />
+          <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." />
         </div>
         <div class="filter-group">
           <label>Order Date:</label>
-          <input type="date" id="dateFilter" onchange="applyOrderFilters()" />
+          <input type="date" id="dateFilter" />
         </div>
       </div>
     </div>
@@ -81,6 +81,7 @@
           </tr>
         {% endif %}
       </tbody>
+    </table>
   </div>
 </div>
 
@@ -129,16 +130,13 @@
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
-             required
-             oninput="fetchProductsForInvoice('add')">
+             required>
       <br><br>
 
       <!-- Product selection dropdown (initially hidden) -->
       <div id="addProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
-        <select name="product_id" id="addProductSelect" 
-                onchange="updateAvailableQuantityForAdd()" 
-                required>
+        <select name="product_id" id="addProductSelect" required>
           <option value="">Select a product</option>
           <!-- Products will be populated by JavaScript -->
         </select>
@@ -152,7 +150,7 @@
       <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
 
       <label>Customer:</label><br>
-      <select name="customer" id="addCustomer" onchange="toggleOtherCustomer('add')" required>
+      <select name="customer" id="addCustomer" required>
         <option value="">Select Customer</option>
         {% for customer in customers %}
           <option value="{{ customer }}">{{ customer }}</option>
@@ -184,16 +182,13 @@
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
-             required
-             oninput="fetchProductsForInvoice('edit')">
+             required>
       <br><br>
 
       <!-- Product selection dropdown (initially hidden) -->
       <div id="editProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
-        <select name="product_id" id="editProductSelect" 
-                onchange="updateAvailableQuantityForEdit()" 
-                required>
+        <select name="product_id" id="editProductSelect" required>
           <option value="">Select a product</option>
           <!-- Products will be populated by JavaScript -->
         </select>
@@ -207,7 +202,7 @@
       <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
 
       <label>Customer:</label><br>
-      <select name="customer" id="editCustomer" onchange="toggleOtherCustomer('edit')" required>
+      <select name="customer" id="editCustomer" required>
         <option value="">Select Customer</option>
         {% for customer in customers %}
           <option value="{{ customer }}">{{ customer }}</option>
@@ -233,8 +228,10 @@ let invoiceDataMap = {};
 let currentProductsForAdd = [];
 let currentProductsForEdit = [];
 
-// Initialize the invoice data map when page loads
+// Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
+  console.log("DOM Content Loaded - Initializing...");
+  
   // Get all options from the datalist
   const datalist = document.getElementById('invoiceNumbersList');
   const options = datalist ? datalist.querySelectorAll('option') : [];
@@ -252,6 +249,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Set up form submissions and other event listeners
   setupFormHandlers();
+  
+  // Set up filter event listeners
+  setupFilterHandlers();
 });
 
 // Filter functions
@@ -261,22 +261,87 @@ function toggleOrderFilterOptions() {
 }
 
 function applyOrderFilters() {
-  const searchValue = document.getElementById("searchOrders").value.toLowerCase();
-  const invoiceValue = document.getElementById("invoiceFilter").value.toLowerCase();
-  const dateValue = document.getElementById("dateFilter").value;
+  console.log("applyOrderFilters called");
+  
+  // Check if table exists
+  const table = document.getElementById("ordersTable");
+  if (!table) {
+    console.error("Table not found!");
+    return;
+  }
+  
+  const tbody = table.querySelector("tbody");
+  if (!tbody) {
+    console.error("Table body not found!");
+    return;
+  }
+  
+  const searchValue = document.getElementById("searchOrders")?.value?.toLowerCase() || '';
+  const invoiceValue = document.getElementById("invoiceFilter")?.value?.toLowerCase() || '';
+  const dateValue = document.getElementById("dateFilter")?.value || '';
 
-  const rows = document.querySelectorAll("#ordersTable tbody tr");
+  const rows = tbody.querySelectorAll("tr");
+  if (!rows.length) {
+    console.log("No rows found in table");
+    return;
+  }
+  
+  console.log(`Filtering ${rows.length} rows with search: "${searchValue}", invoice: "${invoiceValue}", date: "${dateValue}"`);
+  
   rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || '';
-    const rowDate = row.getAttribute("data-date");
+    if (!row) {
+      console.error("Found null row!");
+      return;
+    }
+    
+    // Skip the "No orders found" row if it exists
+    if (row.cells.length === 1 && row.cells[0].colSpan > 1) {
+      row.style.display = ""; // Always show the "no orders" message
+      return;
+    }
+    
+    try {
+      const text = row.textContent.toLowerCase();
+      const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || '';
+      const rowDate = row.getAttribute("data-date");
 
-    const matchesSearch = text.includes(searchValue);
-    const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
-    const matchesDate = !dateValue || rowDate === dateValue;
+      const matchesSearch = !searchValue || text.includes(searchValue);
+      const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
+      const matchesDate = !dateValue || rowDate === dateValue;
 
-    row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
+      row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
+    } catch (error) {
+      console.error("Error filtering row:", error, row);
+    }
   });
+}
+
+// Setup filter event handlers
+function setupFilterHandlers() {
+  const searchInput = document.getElementById('searchOrders');
+  const invoiceFilter = document.getElementById('invoiceFilter');
+  const dateFilter = document.getElementById('dateFilter');
+  
+  if (searchInput) {
+    searchInput.addEventListener('keyup', applyOrderFilters);
+    console.log("Added search filter listener");
+  } else {
+    console.error("searchOrders input not found!");
+  }
+  
+  if (invoiceFilter) {
+    invoiceFilter.addEventListener('keyup', applyOrderFilters);
+    console.log("Added invoice filter listener");
+  } else {
+    console.error("invoiceFilter input not found!");
+  }
+  
+  if (dateFilter) {
+    dateFilter.addEventListener('change', applyOrderFilters);
+    console.log("Added date filter listener");
+  } else {
+    console.error("dateFilter input not found!");
+  }
 }
 
 // Add Order Modal functions
@@ -364,6 +429,8 @@ function toggleOtherCustomer(type) {
 
 // Fetch products for a specific invoice number
 function fetchProductsForInvoice(type, presetInvoice = null, presetProductName = null, presetDosage = null, presetUnit = null) {
+  console.log(`fetchProductsForInvoice called for type: ${type}, presetInvoice: ${presetInvoice}`);
+  
   let invoiceInput, productSelect, productSelectGroup, productsArray;
   
   if (type === 'add') {
@@ -378,16 +445,18 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
     productsArray = currentProductsForEdit;
   }
   
-  const invoiceNumber = presetInvoice || invoiceInput.value.trim();
+  const invoiceNumber = presetInvoice || (invoiceInput ? invoiceInput.value.trim() : '');
   
   if (!invoiceNumber || invoiceNumber.length < 3) {
-    productSelectGroup.style.display = 'none';
-    productSelect.innerHTML = '<option value="">Select a product</option>';
+    if (productSelectGroup) productSelectGroup.style.display = 'none';
+    if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
     
     if (type === 'add') {
-      document.getElementById('addAvailableQty').value = '';
+      const availableQty = document.getElementById('addAvailableQty');
+      if (availableQty) availableQty.value = '';
     } else {
-      document.getElementById('editAvailableQty').value = '';
+      const availableQty = document.getElementById('editAvailableQty');
+      if (availableQty) availableQty.value = '';
     }
     return;
   }
@@ -401,51 +470,56 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
       return res.json();
     })
     .then(data => {
+      console.log('Products data received:', data);
       if (data.success && data.products && data.products.length > 0) {
         // Clear previous products
         productsArray.length = 0;
         
         // Populate the product dropdown
-        productSelect.innerHTML = '<option value="">Select a product</option>';
-        
-        data.products.forEach(product => {
-          const option = document.createElement('option');
-          option.value = product.product_id;
-          // Format: "Product Name (Dosage) [Unit] - X pcs/box"
-          let displayText = product.product_name;
-          if (product.dosage) {
-            displayText += ` (${product.dosage})`;
-          }
-          if (product.unit_name) {
-            displayText += ` [${product.unit_name}]`;
-          }
-          displayText += ` - ${product.quantity_per_box || 1} pcs/box`;
-          option.textContent = displayText;
-          option.setAttribute('data-dosage', product.dosage || '');
-          option.setAttribute('data-unit', product.unit_name || '');
-          option.setAttribute('data-remaining', product.remaining_quantity);
-          option.setAttribute('data-batch', product.batch_number);
-          option.setAttribute('data-product-name', product.product_name);
-          option.setAttribute('data-quantity-per-box', product.quantity_per_box || 1);
-          productSelect.appendChild(option);
+        if (productSelect) {
+          productSelect.innerHTML = '<option value="">Select a product</option>';
           
-          // Store product data in array for later use
-          productsArray.push({
-            product_id: product.product_id,
-            product_name: product.product_name,
-            dosage: product.dosage,
-            unit_name: product.unit_name,
-            remaining_quantity: product.remaining_quantity,
-            batch_number: product.batch_number,
-            quantity_per_box: product.quantity_per_box || 1
+          data.products.forEach(product => {
+            const option = document.createElement('option');
+            option.value = product.product_id;
+            // Format: "Product Name (Dosage) [Unit] - X pcs/box"
+            let displayText = product.product_name;
+            if (product.dosage) {
+              displayText += ` (${product.dosage})`;
+            }
+            if (product.unit_name) {
+              displayText += ` [${product.unit_name}]`;
+            }
+            displayText += ` - ${product.quantity_per_box || 1} pcs/box`;
+            option.textContent = displayText;
+            option.setAttribute('data-dosage', product.dosage || '');
+            option.setAttribute('data-unit', product.unit_name || '');
+            option.setAttribute('data-remaining', product.remaining_quantity);
+            option.setAttribute('data-batch', product.batch_number);
+            option.setAttribute('data-product-name', product.product_name);
+            option.setAttribute('data-quantity-per-box', product.quantity_per_box || 1);
+            productSelect.appendChild(option);
+            
+            // Store product data in array for later use
+            productsArray.push({
+              product_id: product.product_id,
+              product_name: product.product_name,
+              dosage: product.dosage,
+              unit_name: product.unit_name,
+              remaining_quantity: product.remaining_quantity,
+              batch_number: product.batch_number,
+              quantity_per_box: product.quantity_per_box || 1
+            });
           });
-        });
+        }
         
         // Show the product selection dropdown
-        productSelectGroup.style.display = 'block';
+        if (productSelectGroup) {
+          productSelectGroup.style.display = 'block';
+        }
         
         // If we have a preset product (for edit mode), select it
-        if (presetProductName && presetDosage !== undefined && presetUnit !== undefined) {
+        if (presetProductName && presetDosage !== undefined && presetUnit !== undefined && productSelect) {
           // Try to find the matching product
           let foundIndex = -1;
           for (let i = 0; i < productsArray.length; i++) {
@@ -465,30 +539,34 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
         }
         
         // Clear error styling
-        invoiceInput.style.borderColor = '';
+        if (invoiceInput) invoiceInput.style.borderColor = '';
       } else {
-        productSelectGroup.style.display = 'none';
-        productSelect.innerHTML = '<option value="">Select a product</option>';
+        if (productSelectGroup) productSelectGroup.style.display = 'none';
+        if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
         
         if (type === 'add') {
-          document.getElementById('addAvailableQty').value = '';
+          const availableQty = document.getElementById('addAvailableQty');
+          if (availableQty) availableQty.value = '';
         } else {
-          document.getElementById('editAvailableQty').value = '';
+          const availableQty = document.getElementById('editAvailableQty');
+          if (availableQty) availableQty.value = '';
         }
         
         // Show error styling
-        invoiceInput.style.borderColor = '#ff4444';
+        if (invoiceInput) invoiceInput.style.borderColor = '#ff4444';
       }
     })
     .catch(err => {
       console.error('Error fetching products:', err);
-      productSelectGroup.style.display = 'none';
-      productSelect.innerHTML = '<option value="">Select a product</option>';
+      if (productSelectGroup) productSelectGroup.style.display = 'none';
+      if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
       
       if (type === 'add') {
-        document.getElementById('addAvailableQty').value = '';
+        const availableQty = document.getElementById('addAvailableQty');
+        if (availableQty) availableQty.value = '';
       } else {
-        document.getElementById('editAvailableQty').value = '';
+        const availableQty = document.getElementById('editAvailableQty');
+        if (availableQty) availableQty.value = '';
       }
     });
 }
@@ -496,24 +574,33 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
 // Update available quantity when a product is selected (Add modal)
 function updateAvailableQuantityForAdd() {
   const productSelect = document.getElementById('addProductSelect');
+  const availableQty = document.getElementById('addAvailableQty');
+  
+  if (!productSelect || !availableQty) return;
+  
   const selectedIndex = productSelect.selectedIndex;
   
   if (selectedIndex > 0) {
     const selectedOption = productSelect.options[selectedIndex];
     const remaining = selectedOption.getAttribute('data-remaining');
-    document.getElementById('addAvailableQty').value = remaining;
+    availableQty.value = remaining;
   } else {
-    document.getElementById('addAvailableQty').value = '';
+    availableQty.value = '';
   }
 }
 
 // Update available quantity when a product is selected (Edit modal)
 function updateAvailableQuantityForEdit() {
   const productSelect = document.getElementById('editProductSelect');
+  const availableQty = document.getElementById('editAvailableQty');
+  const editInvoiceInput = document.getElementById('editInvoiceNumber');
+  
+  if (!productSelect || !availableQty || !editInvoiceInput) return;
+  
   const selectedIndex = productSelect.selectedIndex;
-  const oldInvoice = document.getElementById('editInvoiceNumber').getAttribute('data-old-invoice');
-  const oldQuantity = parseInt(document.getElementById('editInvoiceNumber').getAttribute('data-old-quantity') || 0);
-  const currentInvoice = document.getElementById('editInvoiceNumber').value.trim();
+  const oldInvoice = editInvoiceInput.getAttribute('data-old-invoice');
+  const oldQuantity = parseInt(editInvoiceInput.getAttribute('data-old-quantity') || 0);
+  const currentInvoice = editInvoiceInput.value.trim();
   
   if (selectedIndex > 0) {
     const selectedOption = productSelect.options[selectedIndex];
@@ -526,45 +613,37 @@ function updateAvailableQuantityForEdit() {
       available += oldQuantity;
     }
     
-    document.getElementById('editAvailableQty').value = available;
+    availableQty.value = available;
   } else {
-    document.getElementById('editAvailableQty').value = '';
+    availableQty.value = '';
   }
 }
 
 // Setup form handlers
 function setupFormHandlers() {
-  // Search and filter event listeners
-  const searchInput = document.getElementById('searchOrders');
-  const invoiceFilter = document.getElementById('invoiceFilter');
-  const dateFilter = document.getElementById('dateFilter');
-  
-  if (searchInput) {
-    searchInput.addEventListener('keyup', applyOrderFilters);
-  }
-  if (invoiceFilter) {
-    invoiceFilter.addEventListener('keyup', applyOrderFilters);
-  }
-  if (dateFilter) {
-    dateFilter.addEventListener('change', applyOrderFilters);
-  }
+  console.log("Setting up form handlers...");
   
   // Add Order Form Submission
-    const addOrderForm = document.getElementById('addOrderForm');
+  const addOrderForm = document.getElementById('addOrderForm');
   if (addOrderForm) {
     addOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault(); // Make sure this is the first line
-      e.stopPropagation(); // Also add this to prevent any bubbling
+      e.preventDefault();
+      e.stopPropagation();
       
       console.log("Add order form submitted");
       
       let customerValue;
       const customerSelect = document.getElementById('addCustomer');
       
+      if (!customerSelect) {
+        alert('Customer select not found');
+        return;
+      }
+      
       // If "Other" is selected, use the custom input value
       if (customerSelect.value === '__other__') {
-        const otherCustomer = document.getElementById('addOtherCustomerInput').value;
-        if (otherCustomer.trim() === '') {
+        const otherCustomer = document.getElementById('addOtherCustomerInput')?.value;
+        if (!otherCustomer || otherCustomer.trim() === '') {
           alert('Please enter a customer name');
           return;
         }
@@ -573,12 +652,12 @@ function setupFormHandlers() {
         customerValue = customerSelect.value;
       }
       
-      const invoiceNumber = document.getElementById('addInvoiceNumber').value.trim();
+      const invoiceNumber = document.getElementById('addInvoiceNumber')?.value.trim();
       const productSelect = document.getElementById('addProductSelect');
-      const productId = productSelect.value;
-      const quantity = parseInt(document.getElementById('addOrderQuantity').value);
+      const productId = productSelect?.value;
+      const quantity = parseInt(document.getElementById('addOrderQuantity')?.value || 0);
 
-      if(!invoiceNumber || !productId || isNaN(quantity) || !customerValue) {
+      if(!invoiceNumber || !productId || isNaN(quantity) || quantity <= 0 || !customerValue) {
         alert('Please fill all fields correctly.');
         return;
       }
@@ -591,7 +670,18 @@ function setupFormHandlers() {
       }
       
       // Validate quantity
-      const availableQty = parseInt(document.getElementById('addAvailableQty').value);
+      const availableQtyElem = document.getElementById('addAvailableQty');
+      if (!availableQtyElem) {
+        alert('Available quantity field not found');
+        return;
+      }
+      
+      const availableQty = parseInt(availableQtyElem.value);
+      if (isNaN(availableQty)) {
+        alert('Cannot determine available quantity. Please select a product.');
+        return;
+      }
+      
       if (quantity > availableQty) {
         alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
         return;
@@ -599,6 +689,11 @@ function setupFormHandlers() {
       
       // Disable the submit button to prevent double submission
       const submitButton = this.querySelector('button[type="submit"]');
+      if (!submitButton) {
+        alert('Submit button not found');
+        return;
+      }
+      
       const originalText = submitButton.textContent;
       submitButton.textContent = 'Processing...';
       submitButton.disabled = true;
@@ -635,26 +730,33 @@ function setupFormHandlers() {
         submitButton.disabled = false;
       });
       
-      return false; // Additional prevention
+      return false;
     });
+  } else {
+    console.error("Add order form not found!");
   }
 
   // Edit Order Form Submission
   const editOrderForm = document.getElementById('editOrderForm');
   if (editOrderForm) {
     editOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault(); // Make sure this is the first line
-      e.stopPropagation(); // Also add this to prevent any bubbling
+      e.preventDefault();
+      e.stopPropagation();
       
       console.log("Edit order form submitted");
       
       let customerValue;
       const customerSelect = document.getElementById('editCustomer');
       
+      if (!customerSelect) {
+        alert('Customer select not found');
+        return;
+      }
+      
       // If "Other" is selected, use the custom input value
       if (customerSelect.value === '__other__') {
-        const otherCustomer = document.getElementById('editOtherCustomerInput').value;
-        if (otherCustomer.trim() === '') {
+        const otherCustomer = document.getElementById('editOtherCustomerInput')?.value;
+        if (!otherCustomer || otherCustomer.trim() === '') {
           alert('Please enter a customer name');
           return;
         }
@@ -663,13 +765,13 @@ function setupFormHandlers() {
         customerValue = customerSelect.value;
       }
       
-      const orderId = document.getElementById('editOrderId').value;
-      const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
+      const orderId = document.getElementById('editOrderId')?.value;
+      const invoiceNumber = document.getElementById('editInvoiceNumber')?.value.trim();
       const productSelect = document.getElementById('editProductSelect');
-      const productId = productSelect.value;
-      const quantity = parseInt(document.getElementById('editOrderQuantity').value);
+      const productId = productSelect?.value;
+      const quantity = parseInt(document.getElementById('editOrderQuantity')?.value || 0);
 
-      if (!invoiceNumber || !productId || isNaN(quantity)) {
+      if (!orderId || !invoiceNumber || !productId || isNaN(quantity) || quantity <= 0) {
         alert('Please fill all fields correctly.');
         return;
       }
@@ -682,7 +784,18 @@ function setupFormHandlers() {
       }
       
       // Validate quantity
-      const availableQty = parseInt(document.getElementById('editAvailableQty').value);
+      const availableQtyElem = document.getElementById('editAvailableQty');
+      if (!availableQtyElem) {
+        alert('Available quantity field not found');
+        return;
+      }
+      
+      const availableQty = parseInt(availableQtyElem.value);
+      if (isNaN(availableQty)) {
+        alert('Cannot determine available quantity. Please select a product.');
+        return;
+      }
+      
       if (quantity > availableQty) {
         alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
         return;
@@ -690,6 +803,11 @@ function setupFormHandlers() {
       
       // Disable the submit button to prevent double submission
       const submitButton = this.querySelector('button[type="submit"]');
+      if (!submitButton) {
+        alert('Submit button not found');
+        return;
+      }
+      
       const originalText = submitButton.textContent;
       submitButton.textContent = 'Processing...';
       submitButton.disabled = true;
@@ -726,14 +844,21 @@ function setupFormHandlers() {
         submitButton.disabled = false;
       });
       
-      return false; // Additional prevention
+      return false;
     });
+  } else {
+    console.error("Edit order form not found!");
   }
   
-  // Add debounced event listeners for invoice inputs
+  // Add event listeners for invoice inputs and product selects
   const addInvoiceInput = document.getElementById('addInvoiceNumber');
   const editInvoiceInput = document.getElementById('editInvoiceNumber');
+  const addProductSelect = document.getElementById('addProductSelect');
+  const editProductSelect = document.getElementById('editProductSelect');
+  const addCustomerSelect = document.getElementById('addCustomer');
+  const editCustomerSelect = document.getElementById('editCustomer');
   
+  // Add invoice input listeners
   [addInvoiceInput, editInvoiceInput].forEach(input => {
     if (input) {
       let timer;
@@ -746,6 +871,30 @@ function setupFormHandlers() {
       });
     }
   });
+  
+  // Add product select change listeners
+  if (addProductSelect) {
+    addProductSelect.addEventListener('change', updateAvailableQuantityForAdd);
+  }
+  
+  if (editProductSelect) {
+    editProductSelect.addEventListener('change', updateAvailableQuantityForEdit);
+  }
+  
+  // Add customer change listeners
+  if (addCustomerSelect) {
+    addCustomerSelect.addEventListener('change', function() {
+      toggleOtherCustomer('add');
+    });
+  }
+  
+  if (editCustomerSelect) {
+    editCustomerSelect.addEventListener('change', function() {
+      toggleOtherCustomer('edit');
+    });
+  }
+  
+  console.log("Form handlers setup complete");
 }
 
 // Delete order
@@ -765,12 +914,3 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
-
-
-
-
-
-
-
-
-
