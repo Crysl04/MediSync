@@ -99,26 +99,39 @@
     background-color: #f44336;
     color: white;
   }
+  /* Style for datalist dropdown */
+  datalist {
+    max-height: 200px;
+    overflow-y: auto;
+  }
 </style>
 
-<!-- Add Order Modal -->
+<!-- Invoice Number Datalist (for both modals) -->
+<datalist id="invoiceNumbersList">
+  {% for inv in invoice_data %}
+    <option value="{{ inv[0] }}" 
+            data-product="{{ inv[1] }}" 
+            data-dosage="{{ inv[2] if inv[2] else '' }}" 
+            data-unit="{{ inv[3] if inv[3] else '' }}">
+      {{ inv[0] }} - {{ inv[1] }}{% if inv[2] %} ({{ inv[2] }}){% endif %}
+    </option>
+  {% endfor %}
+</datalist>
+
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2>Add Order</h2>
     <form id="addOrderForm" method="POST">
       <label>Invoice Number:</label><br>
-      <select name="invoice_number" id="addInvoiceNumber" required onchange="updateProductInfo()">
-        <option value="">Select Invoice Number</option>
-        {% for inv in invoice_data %}
-          <option value="{{ inv[0] }}" 
-                  data-product="{{ inv[1] }}" 
-                  data-dosage="{{ inv[2] if inv[2] else '' }}" 
-                  data-unit="{{ inv[3] if inv[3] else '' }}">
-            {{ inv[0] }} - {{ inv[1] }}{% if inv[2] %} ({{ inv[2] }}){% endif %}
-          </option>
-        {% endfor %}
-      </select><br><br>
+      <!-- Changed from select to input with datalist -->
+      <input type="text" name="invoice_number" id="addInvoiceNumber" 
+             list="invoiceNumbersList" 
+             placeholder="Type to search invoice numbers..." 
+             autocomplete="off"
+             required 
+             oninput="updateProductInfo()">
+      <br><br>
 
       <label>Product:</label><br>
       <input type="text" id="addProductInfo" readonly><br><br>
@@ -158,17 +171,14 @@
       <input type="hidden" name="order_id" id="editOrderId">
 
       <label>Invoice Number:</label><br>
-      <select name="invoice_number" id="editInvoiceNumber" required onchange="updateEditProductInfo()">
-        <option value="">Select Invoice Number</option>
-        {% for inv in invoice_data %}
-          <option value="{{ inv[0] }}" 
-                  data-product="{{ inv[1] }}" 
-                  data-dosage="{{ inv[2] if inv[2] else '' }}" 
-                  data-unit="{{ inv[3] if inv[3] else '' }}">
-            {{ inv[0] }} - {{ inv[1] }}{% if inv[2] %} ({{ inv[2] }}){% endif %}
-          </option>
-        {% endfor %}
-      </select><br><br>
+      <!-- Changed from select to input with datalist -->
+      <input type="text" name="invoice_number" id="editInvoiceNumber" 
+             list="invoiceNumbersList" 
+             placeholder="Type to search invoice numbers..." 
+             autocomplete="off"
+             required 
+             oninput="updateEditProductInfo()">
+      <br><br>
 
       <label>Product:</label><br>
       <input type="text" id="editProductInfo" readonly><br><br>
@@ -199,7 +209,29 @@
     </form>
   </div>
 </div>
+
 <script>
+// Create a map to store invoice data for quick lookup
+let invoiceDataMap = {};
+
+// Initialize the invoice data map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Get all options from the datalist
+  const datalist = document.getElementById('invoiceNumbersList');
+  const options = datalist ? datalist.querySelectorAll('option') : [];
+  
+  // Populate the invoice data map
+  options.forEach(option => {
+    invoiceDataMap[option.value] = {
+      product: option.getAttribute('data-product'),
+      dosage: option.getAttribute('data-dosage'),
+      unit: option.getAttribute('data-unit')
+    };
+  });
+  
+  console.log('Invoice data map loaded:', invoiceDataMap);
+});
+
 // Filter functions
 function toggleOrderFilterOptions() {
   const filterBox = document.getElementById("orderFilterOptions");
@@ -227,14 +259,12 @@ function applyOrderFilters() {
 
 // Add Order Modal functions
 function openAddOrderModal() { 
-  console.log("openAddOrderModal called"); // Debug log
+  console.log("openAddOrderModal called");
   document.getElementById('addOrderModal').style.display = 'block';
   // Reset form
   document.getElementById('addOrderForm').reset();
   // Clear product info fields
   document.getElementById('addProductInfo').value = '';
-  document.getElementById('addDosageInfo').value = '';
-  document.getElementById('addUnitInfo').value = '';
   document.getElementById('addAvailableQty').value = '';
   document.getElementById('addOrderQuantity').value = '';
   document.getElementById('addCustomer').selectedIndex = 0;
@@ -302,81 +332,92 @@ function toggleOtherCustomer(type) {
 
 // Update product info when invoice is selected (for add order)
 function updateProductInfo() {
-  const invoiceSelect = document.getElementById('addInvoiceNumber');
-  const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
+  const invoiceInput = document.getElementById('addInvoiceNumber');
+  const invoiceNumber = invoiceInput.value.trim();
   
-  if (!selectedOption.value) {
+  if (!invoiceNumber) {
     document.getElementById('addProductInfo').value = '';
     document.getElementById('addAvailableQty').value = '';
     return;
   }
   
-  const invoiceNumber = selectedOption.value;
-  const productName = selectedOption.getAttribute('data-product');
+  // Check if the invoice number exists in our map
+  if (invoiceDataMap[invoiceNumber]) {
+    const invoiceData = invoiceDataMap[invoiceNumber];
+    document.getElementById('addProductInfo').value = invoiceData.product || '';
+  } else {
+    // If not found in map, try to fetch from server
+    document.getElementById('addProductInfo').value = '';
+  }
   
-  // Set the product info field (only this exists)
-  document.getElementById('addProductInfo').value = productName;
-  
-  // Fetch available quantity
+  // Fetch available quantity from server
   fetch(`/get-purchase-info/${invoiceNumber}`)
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return res.json();
+    })
     .then(data => {
       if (data.success) {
         document.getElementById('addAvailableQty').value = data.remaining_quantity;
       } else {
-        alert(data.message);
+        // If invoice not found, clear the fields
+        document.getElementById('addProductInfo').value = '';
         document.getElementById('addAvailableQty').value = '';
+        // Show a subtle hint that invoice is not valid
+        invoiceInput.style.borderColor = data.message ? '#ff4444' : '';
       }
     })
     .catch(err => {
       console.error('Error:', err);
+      document.getElementById('addProductInfo').value = '';
       document.getElementById('addAvailableQty').value = '';
     });
 }
 
 // Update product info when invoice is selected (for edit order)
 function updateEditProductInfo() {
-  const invoiceSelect = document.getElementById('editInvoiceNumber');
-  if (!invoiceSelect) {
-    console.error("editInvoiceNumber element not found");
-    return;
-  }
+  const invoiceInput = document.getElementById('editInvoiceNumber');
+  const invoiceNumber = invoiceInput.value.trim();
   
-  const selectedIndex = invoiceSelect.selectedIndex;
-  if (selectedIndex < 0) {
-    console.error("No option selected in editInvoiceNumber");
+  if (!invoiceNumber) {
     document.getElementById('editProductInfo').value = '';
     document.getElementById('editAvailableQty').value = '';
     return;
   }
   
-  const selectedOption = invoiceSelect.options[selectedIndex];
-  
-  if (!selectedOption || !selectedOption.value) {
+  // Check if the invoice number exists in our map
+  if (invoiceDataMap[invoiceNumber]) {
+    const invoiceData = invoiceDataMap[invoiceNumber];
+    document.getElementById('editProductInfo').value = invoiceData.product || '';
+  } else {
+    // If not found in map, try to fetch from server
     document.getElementById('editProductInfo').value = '';
-    document.getElementById('editAvailableQty').value = '';
-    return;
   }
   
-  const invoiceNumber = selectedOption.value;
-  const productName = selectedOption.getAttribute('data-product');
-  
-  // Set the product info field (only this exists)
-  document.getElementById('editProductInfo').value = productName || '';
-  
-  // Fetch available quantity
+  // Fetch available quantity from server
   fetch(`/get-purchase-info/${invoiceNumber}`)
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return res.json();
+    })
     .then(data => {
       if (data.success) {
         document.getElementById('editAvailableQty').value = data.remaining_quantity;
       } else {
-        alert(data.message);
+        // If invoice not found, clear the fields
+        document.getElementById('editProductInfo').value = '';
         document.getElementById('editAvailableQty').value = '';
+        // Show a subtle hint that invoice is not valid
+        invoiceInput.style.borderColor = data.message ? '#ff4444' : '';
       }
     })
     .catch(err => {
       console.error('Error:', err);
+      document.getElementById('editProductInfo').value = '';
       document.getElementById('editAvailableQty').value = '';
     });
 }
@@ -404,11 +445,17 @@ document.addEventListener('DOMContentLoaded', function() {
         customerValue = customerSelect.value;
       }
       
-      const invoiceNumber = document.getElementById('addInvoiceNumber').value;
+      const invoiceNumber = document.getElementById('addInvoiceNumber').value.trim();
       const quantity = parseInt(document.getElementById('addOrderQuantity').value);
 
       if(!invoiceNumber || isNaN(quantity) || !customerValue) {
         alert('Please fill all fields correctly.');
+        return;
+      }
+      
+      // Validate invoice number exists
+      if (!invoiceDataMap[invoiceNumber]) {
+        alert('Invalid invoice number. Please select a valid invoice from the list.');
         return;
       }
 
@@ -455,8 +502,14 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const orderId = document.getElementById('editOrderId').value;
-      const invoiceNumber = document.getElementById('editInvoiceNumber').value;
+      const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
       const quantity = document.getElementById('editOrderQuantity').value;
+
+      // Validate invoice number exists
+      if (!invoiceDataMap[invoiceNumber]) {
+        alert('Invalid invoice number. Please select a valid invoice from the list.');
+        return;
+      }
 
       fetch(`/edit-order/${orderId}`, {
         method: 'POST',
@@ -478,6 +531,36 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
+  
+  // Add event listeners for search and filter
+  const searchInput = document.getElementById('searchOrders');
+  const invoiceFilter = document.getElementById('invoiceFilter');
+  const dateFilter = document.getElementById('dateFilter');
+  
+  if (searchInput) {
+    searchInput.addEventListener('keyup', applyOrderFilters);
+  }
+  if (invoiceFilter) {
+    invoiceFilter.addEventListener('keyup', applyOrderFilters);
+  }
+  if (dateFilter) {
+    dateFilter.addEventListener('change', applyOrderFilters);
+  }
+  
+  // Add keyboard navigation for invoice input
+  const addInvoiceInput = document.getElementById('addInvoiceNumber');
+  const editInvoiceInput = document.getElementById('editInvoiceNumber');
+  
+  [addInvoiceInput, editInvoiceInput].forEach(input => {
+    if (input) {
+      input.addEventListener('keydown', function(e) {
+        // If user presses Enter in the invoice field, prevent form submission
+        if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+      });
+    }
+  });
 });
 
 // Delete order
@@ -495,32 +578,5 @@ function deleteOrder(orderId) {
       });
   }
 }
-
-// Event listeners for search and filter
-document.addEventListener('DOMContentLoaded', function() {
-  const searchInput = document.getElementById('searchOrders');
-  const invoiceFilter = document.getElementById('invoiceFilter');
-  const dateFilter = document.getElementById('dateFilter');
-  
-  if (searchInput) {
-    searchInput.addEventListener('keyup', applyOrderFilters);
-  }
-  if (invoiceFilter) {
-    invoiceFilter.addEventListener('keyup', applyOrderFilters);
-  }
-  if (dateFilter) {
-    dateFilter.addEventListener('change', applyOrderFilters);
-  }
-});
 </script>
 {% endblock %}
-
-
-
-
-
-
-
-
-
-
