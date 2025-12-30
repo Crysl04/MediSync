@@ -120,19 +120,31 @@
 
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
     <h2>Add Order</h2>
     <form id="addOrderForm" method="POST">
       <label>Invoice Number:</label><br>
-      <!-- Changed from select to input with datalist -->
       <input type="text" name="invoice_number" id="addInvoiceNumber" 
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
-             required 
+             required
+             oninput="fetchProductsForInvoice('add')">
       <br><br>
 
-      <label>Product:</label><br>
+      <!-- NEW: Product selection dropdown (initially hidden) -->
+      <div id="addProductSelectGroup" style="display:none;">
+        <label>Select Product:</label><br>
+        <select name="product_id" id="addProductSelect" 
+                onchange="updateProductInfoForAdd()" 
+                required>
+          <option value="">Select a product</option>
+          <!-- Products will be populated by JavaScript -->
+        </select>
+        <br><br>
+      </div>
+
+      <label>Product Information:</label><br>
       <input type="text" id="addProductInfo" readonly><br><br>
 
       <label>Available Quantity:</label><br>
@@ -164,21 +176,33 @@
 
 <!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
     <h2>Edit Order</h2>
     <form id="editOrderForm" method="POST">
       <input type="hidden" name="order_id" id="editOrderId">
 
       <label>Invoice Number:</label><br>
-      <!-- Changed from select to input with datalist -->
       <input type="text" name="invoice_number" id="editInvoiceNumber" 
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
              required
+             oninput="fetchProductsForInvoice('edit')">
       <br><br>
 
-      <label>Product:</label><br>
+      <!-- NEW: Product selection dropdown (initially hidden) -->
+      <div id="editProductSelectGroup" style="display:none;">
+        <label>Select Product:</label><br>
+        <select name="product_id" id="editProductSelect" 
+                onchange="updateProductInfoForEdit()" 
+                required>
+          <option value="">Select a product</option>
+          <!-- Products will be populated by JavaScript -->
+        </select>
+        <br><br>
+      </div>
+
+      <label>Product Information:</label><br>
       <input type="text" id="editProductInfo" readonly><br><br>
 
       <label>Available Quantity:</label><br>
@@ -211,6 +235,8 @@
 <script>
 // Create a map to store invoice data for quick lookup
 let invoiceDataMap = {};
+let currentProductsForAdd = [];
+let currentProductsForEdit = [];
 
 // Initialize the invoice data map when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -228,9 +254,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   console.log('Invoice data map loaded:', invoiceDataMap);
-  
-  // Set up event listeners for invoice inputs
-  setupInvoiceEventListeners();
   
   // Set up form submissions and other event listeners
   setupFormHandlers();
@@ -267,12 +290,16 @@ function openAddOrderModal() {
   document.getElementById('addOrderModal').style.display = 'block';
   // Reset form
   document.getElementById('addOrderForm').reset();
+  // Hide product selection group
+  document.getElementById('addProductSelectGroup').style.display = 'none';
   // Clear product info fields
   document.getElementById('addProductInfo').value = '';
   document.getElementById('addAvailableQty').value = '';
   document.getElementById('addOrderQuantity').value = '';
   document.getElementById('addCustomer').selectedIndex = 0;
   document.getElementById('addOtherCustomerGroup').style.display = 'none';
+  // Clear product dropdown
+  document.getElementById('addProductSelect').innerHTML = '<option value="">Select a product</option>';
 }
 
 function closeAddOrderModal() { 
@@ -318,8 +345,8 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
     otherInput.value = customer;
   }
   
-  // Fetch available quantity for the selected invoice
-  fetchProductInfoForEdit(invoiceNumber, invoiceNumber, quantity);
+  // Fetch products for this invoice
+  fetchProductsForInvoice('edit', invoiceNumber, productName, dosage, unit);
   
   document.getElementById('editOrderModal').style.display = 'block';
 }
@@ -340,24 +367,40 @@ function toggleOtherCustomer(type) {
   }
 }
 
-// Helper function to fetch product info for Add modal
-function fetchProductInfoForAdd(invoiceNumber) {
+// Fetch products for a specific invoice number
+function fetchProductsForInvoice(type, presetInvoice = null, presetProductName = null, presetDosage = null, presetUnit = null) {
+  let invoiceInput, productSelect, productSelectGroup, productsArray;
+  
+  if (type === 'add') {
+    invoiceInput = document.getElementById('addInvoiceNumber');
+    productSelect = document.getElementById('addProductSelect');
+    productSelectGroup = document.getElementById('addProductSelectGroup');
+    productsArray = currentProductsForAdd;
+  } else {
+    invoiceInput = document.getElementById('editInvoiceNumber');
+    productSelect = document.getElementById('editProductSelect');
+    productSelectGroup = document.getElementById('editProductSelectGroup');
+    productsArray = currentProductsForEdit;
+  }
+  
+  const invoiceNumber = presetInvoice || invoiceInput.value.trim();
+  
   if (!invoiceNumber || invoiceNumber.length < 3) {
-    document.getElementById('addProductInfo').value = '';
-    document.getElementById('addAvailableQty').value = '';
+    productSelectGroup.style.display = 'none';
+    productSelect.innerHTML = '<option value="">Select a product</option>';
+    
+    if (type === 'add') {
+      document.getElementById('addProductInfo').value = '';
+      document.getElementById('addAvailableQty').value = '';
+    } else {
+      document.getElementById('editProductInfo').value = '';
+      document.getElementById('editAvailableQty').value = '';
+    }
     return;
   }
   
-  // Check local map first for instant feedback
-  if (invoiceDataMap[invoiceNumber]) {
-    const invoiceData = invoiceDataMap[invoiceNumber];
-    document.getElementById('addProductInfo').value = invoiceData.product || '';
-  } else {
-    document.getElementById('addProductInfo').value = '';
-  }
-  
-  // Fetch from server for accurate data
-  fetch(`/get-purchase-info/${encodeURIComponent(invoiceNumber)}`)
+  // Fetch all products for this invoice number
+  fetch(`/get-products-by-invoice/${encodeURIComponent(invoiceNumber)}`)
     .then(res => {
       if (!res.ok) {
         throw new Error('Network response was not ok');
@@ -365,167 +408,137 @@ function fetchProductInfoForAdd(invoiceNumber) {
       return res.json();
     })
     .then(data => {
-      if (data.success) {
-        document.getElementById('addAvailableQty').value = data.remaining_quantity;
-        document.getElementById('addProductInfo').value = data.product_name || '';
-        // Clear any error styling
-        document.getElementById('addInvoiceNumber').style.borderColor = '';
+      if (data.success && data.products && data.products.length > 0) {
+        // Clear previous products
+        productsArray.length = 0;
+        
+        // Populate the product dropdown
+        productSelect.innerHTML = '<option value="">Select a product</option>';
+        
+        data.products.forEach(product => {
+          const option = document.createElement('option');
+          option.value = product.product_id;
+          option.textContent = `${product.product_name}${product.dosage ? ` (${product.dosage})` : ''} - Available: ${product.remaining_quantity} ${product.unit_name || ''}`;
+          option.setAttribute('data-dosage', product.dosage || '');
+          option.setAttribute('data-unit', product.unit_name || '');
+          option.setAttribute('data-remaining', product.remaining_quantity);
+          option.setAttribute('data-batch', product.batch_number);
+          productSelect.appendChild(option);
+          
+          // Store product data in array for later use
+          productsArray.push({
+            product_id: product.product_id,
+            product_name: product.product_name,
+            dosage: product.dosage,
+            unit_name: product.unit_name,
+            remaining_quantity: product.remaining_quantity,
+            batch_number: product.batch_number
+          });
+        });
+        
+        // Show the product selection dropdown
+        productSelectGroup.style.display = 'block';
+        
+        // If we have a preset product (for edit mode), select it
+        if (presetProductName && presetDosage !== undefined && presetUnit !== undefined) {
+          // Try to find the matching product
+          let foundIndex = -1;
+          for (let i = 0; i < productsArray.length; i++) {
+            const product = productsArray[i];
+            if (product.product_name === presetProductName && 
+                product.dosage === presetDosage && 
+                product.unit_name === presetUnit) {
+              foundIndex = i;
+              break;
+            }
+          }
+          
+          if (foundIndex !== -1) {
+            productSelect.selectedIndex = foundIndex + 1; // +1 because of the "Select a product" option
+            updateProductInfoForEdit();
+          }
+        }
+        
+        // Clear error styling
+        invoiceInput.style.borderColor = '';
       } else {
-        document.getElementById('addProductInfo').value = '';
-        document.getElementById('addAvailableQty').value = '';
+        productSelectGroup.style.display = 'none';
+        productSelect.innerHTML = '<option value="">Select a product</option>';
+        
+        if (type === 'add') {
+          document.getElementById('addProductInfo').value = '';
+          document.getElementById('addAvailableQty').value = '';
+        } else {
+          document.getElementById('editProductInfo').value = '';
+          document.getElementById('editAvailableQty').value = '';
+        }
+        
         // Show error styling
-        document.getElementById('addInvoiceNumber').style.borderColor = '#ff4444';
+        invoiceInput.style.borderColor = '#ff4444';
       }
     })
     .catch(err => {
-      console.error('Error fetching product info:', err);
-      document.getElementById('addProductInfo').value = '';
-      document.getElementById('addAvailableQty').value = '';
-    });
-}
-
-// Helper function to fetch product info for Edit modal
-function fetchProductInfoForEdit(invoiceNumber, oldInvoice, oldQuantity) {
-  if (!invoiceNumber || invoiceNumber.length < 3) {
-    document.getElementById('editProductInfo').value = '';
-    document.getElementById('editAvailableQty').value = '';
-    return;
-  }
-  
-  // Check local map first for instant feedback
-  if (invoiceDataMap[invoiceNumber]) {
-    const invoiceData = invoiceDataMap[invoiceNumber];
-    document.getElementById('editProductInfo').value = invoiceData.product || '';
-  } else {
-    document.getElementById('editProductInfo').value = '';
-  }
-  
-  // Fetch from server for accurate data
-  fetch(`/get-purchase-info/${encodeURIComponent(invoiceNumber)}`)
-    .then(res => {
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data.success) {
-        let available = data.remaining_quantity;
-        
-        // If editing the same invoice, add back the old order quantity
-        // because it will be available for reallocation
-        if (invoiceNumber === oldInvoice) {
-          available += parseInt(oldQuantity);
-        }
-        
-        document.getElementById('editAvailableQty').value = available;
-        document.getElementById('editProductInfo').value = data.product_name || '';
-        // Clear any error styling
-        document.getElementById('editInvoiceNumber').style.borderColor = '';
+      console.error('Error fetching products:', err);
+      productSelectGroup.style.display = 'none';
+      productSelect.innerHTML = '<option value="">Select a product</option>';
+      
+      if (type === 'add') {
+        document.getElementById('addProductInfo').value = '';
+        document.getElementById('addAvailableQty').value = '';
       } else {
         document.getElementById('editProductInfo').value = '';
         document.getElementById('editAvailableQty').value = '';
-        // Show error styling
-        document.getElementById('editInvoiceNumber').style.borderColor = '#ff4444';
       }
-    })
-    .catch(err => {
-      console.error('Error fetching product info:', err);
-      document.getElementById('editProductInfo').value = '';
-      document.getElementById('editAvailableQty').value = '';
     });
 }
 
-// Setup event listeners for invoice inputs
-function setupInvoiceEventListeners() {
-  const addInvoiceInput = document.getElementById('addInvoiceNumber');
-  const editInvoiceInput = document.getElementById('editInvoiceNumber');
+// Update product info when a product is selected (Add modal)
+function updateProductInfoForAdd() {
+  const productSelect = document.getElementById('addProductSelect');
+  const selectedIndex = productSelect.selectedIndex;
   
-  // Add Order Modal invoice input
-  if (addInvoiceInput) {
-    let addTimer;
+  if (selectedIndex > 0) {
+    const selectedOption = productSelect.options[selectedIndex];
+    const productName = productSelect.options[selectedIndex].text.split(' - ')[0];
+    const dosage = selectedOption.getAttribute('data-dosage');
+    const unit = selectedOption.getAttribute('data-unit');
+    const remaining = selectedOption.getAttribute('data-remaining');
     
-    addInvoiceInput.addEventListener('input', function() {
-      const invoiceNumber = this.value.trim();
-      
-      // Clear previous timer
-      clearTimeout(addTimer);
-      
-      // Set new timer for debouncing (500ms delay)
-      addTimer = setTimeout(() => {
-        fetchProductInfoForAdd(invoiceNumber);
-      }, 500);
-      
-      // Update from local map immediately
-      if (invoiceDataMap[invoiceNumber]) {
-        const invoiceData = invoiceDataMap[invoiceNumber];
-        document.getElementById('addProductInfo').value = invoiceData.product || '';
-      } else {
-        document.getElementById('addProductInfo').value = '';
-      }
-    });
-    
-    // Also update on blur (when user clicks away)
-    addInvoiceInput.addEventListener('blur', function() {
-      const invoiceNumber = this.value.trim();
-      fetchProductInfoForAdd(invoiceNumber);
-    });
-    
-    // Prevent Enter key from submitting form in invoice field
-    addInvoiceInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        clearTimeout(addTimer);
-        fetchProductInfoForAdd(this.value.trim());
-      }
-    });
+    document.getElementById('addProductInfo').value = `${productName}${dosage ? ` (${dosage})` : ''} ${unit ? `[${unit}]` : ''}`;
+    document.getElementById('addAvailableQty').value = remaining;
+  } else {
+    document.getElementById('addProductInfo').value = '';
+    document.getElementById('addAvailableQty').value = '';
   }
+}
+
+// Update product info when a product is selected (Edit modal)
+function updateProductInfoForEdit() {
+  const productSelect = document.getElementById('editProductSelect');
+  const selectedIndex = productSelect.selectedIndex;
+  const oldInvoice = document.getElementById('editInvoiceNumber').getAttribute('data-old-invoice');
+  const oldQuantity = parseInt(document.getElementById('editInvoiceNumber').getAttribute('data-old-quantity') || 0);
+  const currentInvoice = document.getElementById('editInvoiceNumber').value.trim();
   
-  // Edit Order Modal invoice input
-  if (editInvoiceInput) {
-    let editTimer;
+  if (selectedIndex > 0) {
+    const selectedOption = productSelect.options[selectedIndex];
+    const productName = productSelect.options[selectedIndex].text.split(' - ')[0];
+    const dosage = selectedOption.getAttribute('data-dosage');
+    const unit = selectedOption.getAttribute('data-unit');
+    const remaining = parseInt(selectedOption.getAttribute('data-remaining'));
     
-    editInvoiceInput.addEventListener('input', function() {
-      const invoiceNumber = this.value.trim();
-      const oldInvoice = this.getAttribute('data-old-invoice');
-      const oldQuantity = this.getAttribute('data-old-quantity');
-      
-      // Clear previous timer
-      clearTimeout(editTimer);
-      
-      // Set new timer for debouncing (500ms delay)
-      editTimer = setTimeout(() => {
-        fetchProductInfoForEdit(invoiceNumber, oldInvoice, oldQuantity);
-      }, 500);
-      
-      // Update from local map immediately
-      if (invoiceDataMap[invoiceNumber]) {
-        const invoiceData = invoiceDataMap[invoiceNumber];
-        document.getElementById('editProductInfo').value = invoiceData.product || '';
-      } else {
-        document.getElementById('editProductInfo').value = '';
-      }
-    });
+    let available = remaining;
     
-    // Also update on blur (when user clicks away)
-    editInvoiceInput.addEventListener('blur', function() {
-      const invoiceNumber = this.value.trim();
-      const oldInvoice = this.getAttribute('data-old-invoice');
-      const oldQuantity = this.getAttribute('data-old-quantity');
-      fetchProductInfoForEdit(invoiceNumber, oldInvoice, oldQuantity);
-    });
+    // If editing the same invoice, add back the old order quantity
+    if (currentInvoice === oldInvoice) {
+      available += oldQuantity;
+    }
     
-    // Prevent Enter key from submitting form in invoice field
-    editInvoiceInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        clearTimeout(editTimer);
-        const invoiceNumber = this.value.trim();
-        const oldInvoice = this.getAttribute('data-old-invoice');
-        const oldQuantity = this.getAttribute('data-old-quantity');
-        fetchProductInfoForEdit(invoiceNumber, oldInvoice, oldQuantity);
-      }
-    });
+    document.getElementById('editProductInfo').value = `${productName}${dosage ? ` (${dosage})` : ''} ${unit ? `[${unit}]` : ''}`;
+    document.getElementById('editAvailableQty').value = available;
+  } else {
+    document.getElementById('editProductInfo').value = '';
+    document.getElementById('editAvailableQty').value = '';
   }
 }
 
@@ -568,10 +581,19 @@ function setupFormHandlers() {
       }
       
       const invoiceNumber = document.getElementById('addInvoiceNumber').value.trim();
+      const productSelect = document.getElementById('addProductSelect');
+      const productId = productSelect.value;
       const quantity = parseInt(document.getElementById('addOrderQuantity').value);
 
-      if(!invoiceNumber || isNaN(quantity) || !customerValue) {
+      if(!invoiceNumber || !productId || isNaN(quantity) || !customerValue) {
         alert('Please fill all fields correctly.');
+        return;
+      }
+      
+      // Get batch number from selected product
+      const selectedProduct = currentProductsForAdd.find(p => p.product_id == productId);
+      if (!selectedProduct) {
+        alert('Please select a valid product.');
         return;
       }
       
@@ -580,6 +602,8 @@ function setupFormHandlers() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           invoice_number: invoiceNumber, 
+          product_id: productId,
+          batch_number: selectedProduct.batch_number,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -619,13 +643,29 @@ function setupFormHandlers() {
       
       const orderId = document.getElementById('editOrderId').value;
       const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
+      const productSelect = document.getElementById('editProductSelect');
+      const productId = productSelect.value;
       const quantity = document.getElementById('editOrderQuantity').value;
 
+      if (!invoiceNumber || !productId) {
+        alert('Please select a valid invoice and product.');
+        return;
+      }
+      
+      // Get batch number from selected product
+      const selectedProduct = currentProductsForEdit.find(p => p.product_id == productId);
+      if (!selectedProduct) {
+        alert('Please select a valid product.');
+        return;
+      }
+      
       fetch(`/edit-order/${orderId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           invoice_number: invoiceNumber, 
+          product_id: productId,
+          batch_number: selectedProduct.batch_number,
           order_quantity: quantity, 
           customer: customerValue 
         })
@@ -641,6 +681,23 @@ function setupFormHandlers() {
       });
     });
   }
+  
+  // Add debounced event listeners for invoice inputs
+  const addInvoiceInput = document.getElementById('addInvoiceNumber');
+  const editInvoiceInput = document.getElementById('editInvoiceNumber');
+  
+  [addInvoiceInput, editInvoiceInput].forEach(input => {
+    if (input) {
+      let timer;
+      input.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          const type = this.id === 'addInvoiceNumber' ? 'add' : 'edit';
+          fetchProductsForInvoice(type);
+        }, 500);
+      });
+    }
+  });
 }
 
 // Delete order
@@ -660,6 +717,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
