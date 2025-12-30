@@ -61,7 +61,6 @@
       <th>Batch Number</th>
       <th>Quantity</th>
       <th>Unit</th>
-      <th>Qty per Box<th>
       <th>Expiration Date</th>
       <th>Status</th>
       <th>Actions</th>
@@ -79,7 +78,6 @@
           <td>{{ purchase[3] }}</td> <!-- Batch Number -->
           <td>{{ purchase[4] }}</td> <!-- Quantity -->
           <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
-          <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!--QtyPerBox -->
           <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
           <td>{{ purchase[8] }}</td> <!-- Status -->
           <td>
@@ -568,3 +566,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
