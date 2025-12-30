@@ -793,6 +793,9 @@ def add_order():
     invoice_number = data.get('invoice_number')
     product_id = data.get('product_id')
     batch_number = data.get('batch_number')
+    product_name = data.get('product_name')
+    dosage = data.get('dosage', '')
+    unit_name = data.get('unit_name', '')
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
 
@@ -804,11 +807,10 @@ def add_order():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Get product details for the specific invoice, product, and batch
+        # Get purchase details for validation
         c.execute("""
-            SELECT pu.id, pu.remaining_quantity, pr.product_name, pu.unit_name, pu.dosage
+            SELECT pu.id, pu.remaining_quantity
             FROM purchase pu
-            JOIN product pr ON pu.product_id = pr.id
             WHERE pu.invoice_number = %s AND pu.product_id = %s AND pu.batch_number = %s
         """, (invoice_number, product_id, batch_number))
         
@@ -817,7 +819,7 @@ def add_order():
         if not purchase_info:
             return jsonify({'success': False, 'message': 'Invalid invoice number, product, or batch'})
         
-        purchase_id, remaining_quantity, product_name, unit_name, dosage = purchase_info
+        purchase_id, remaining_quantity = purchase_info
         
         if remaining_quantity < order_quantity:
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
@@ -848,7 +850,7 @@ def add_order():
     finally:
         if conn:
             conn.close()
-
+            
 @app.route('/edit-order/<int:order_id>', methods=['POST'])
 @login_required
 def edit_order(order_id):
