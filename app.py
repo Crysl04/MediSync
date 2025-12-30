@@ -956,6 +956,38 @@ def delete_order(order_id):
         if conn:
             conn.close()
 
+@app.route('/get-purchase-info/<invoice_number>')
+@login_required
+def get_purchase_info(invoice_number):
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        c.execute("""
+            SELECT pr.product_name, pu.remaining_quantity, pr.dosage, u.unit_name
+            FROM purchase pu
+            JOIN product pr ON pu.product_id = pr.id
+            LEFT JOIN unit u ON pr.unit_id = u.id
+            WHERE pu.invoice_number = %s
+        """, (invoice_number,))
+        
+        result = c.fetchone()
+        if result:
+            return jsonify({
+                'success': True,
+                'product_name': result[0],
+                'remaining_quantity': result[1],
+                'dosage': result[2] if result[2] else '',
+                'unit_name': result[3] if result[3] else ''
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Invoice not found'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        if conn:
+            conn.close()
+            
 @app.route('/get-purchase-info-edit/<invoice_number>/<int:order_id>')
 @login_required
 def get_purchase_info_edit(invoice_number, order_id):
