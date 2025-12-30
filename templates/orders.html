@@ -214,6 +214,19 @@
 // Create a map to store invoice data for quick lookup
 let invoiceDataMap = {};
 
+// Debounce function to limit how often a function is called
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // Initialize the invoice data map when page loads
 document.addEventListener('DOMContentLoaded', function() {
   // Get all options from the datalist
@@ -319,13 +332,25 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
   
   document.getElementById('editOrderModal').style.display = 'block';
 }
-
+  
 function closeEditOrderModal() { 
   document.getElementById('editOrderModal').style.display = 'none';
 }
 
-// Update product info when invoice is selected (for add order)
-function updateProductInfo() {
+// Toggle other customer input
+function toggleOtherCustomer(type) {
+  const customerSelect = document.getElementById(type === 'add' ? 'addCustomer' : 'editCustomer');
+  const otherGroup = document.getElementById(type === 'add' ? 'addOtherCustomerGroup' : 'editOtherCustomerGroup');
+  
+  if (customerSelect.value === '__other__') {
+    otherGroup.style.display = 'block';
+  } else {
+    otherGroup.style.display = 'none';
+  }
+}
+
+// Update product info when invoice is selected (for add order) - DEBOUNCED
+const debouncedUpdateProductInfo = debounce(function() {
   const invoiceInput = document.getElementById('addInvoiceNumber');
   const invoiceNumber = invoiceInput.value.trim();
   
@@ -335,46 +360,56 @@ function updateProductInfo() {
     return;
   }
   
-  // Check if the invoice number exists in our map
+  // Check if the invoice number exists in our map for instant feedback
   if (invoiceDataMap[invoiceNumber]) {
     const invoiceData = invoiceDataMap[invoiceNumber];
     document.getElementById('addProductInfo').value = invoiceData.product || '';
   } else {
-    // If not found in map, try to fetch from server
+    // If not found in map, clear the field (we'll validate on submit)
     document.getElementById('addProductInfo').value = '';
   }
   
-  // Fetch available quantity from server
-  fetch(`/get-purchase-info/${invoiceNumber}`)
-    .then(res => {
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data.success) {
-        document.getElementById('addAvailableQty').value = data.remaining_quantity;
-      } else {
-        // If invoice not found, clear the fields
+  // Fetch available quantity from server - only if invoice is at least 3 characters
+  if (invoiceNumber.length >= 3) {
+    fetch(`/get-purchase-info/${invoiceNumber}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.success) {
+          document.getElementById('addAvailableQty').value = data.remaining_quantity;
+          document.getElementById('addProductInfo').value = data.product_name || '';
+          // If invoice was valid, remove any error styling
+          invoiceInput.style.borderColor = '';
+        } else {
+          // If invoice not found, clear the fields
+          document.getElementById('addProductInfo').value = '';
+          document.getElementById('addAvailableQty').value = '';
+          // Show a subtle hint that invoice is not valid
+          invoiceInput.style.borderColor = data.message ? '#ff4444' : '';
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
         document.getElementById('addProductInfo').value = '';
         document.getElementById('addAvailableQty').value = '';
-        // Show a subtle hint that invoice is not valid
-        invoiceInput.style.borderColor = data.message ? '#ff4444' : '';
-      }
-    })
-    .catch(err => {
-      console.error('Error:', err);
-      document.getElementById('addProductInfo').value = '';
-      document.getElementById('addAvailableQty').value = '';
-    });
-}
+      });
+  } else {
+    // Clear fields if invoice is too short
+    document.getElementById('addProductInfo').value = '';
+    document.getElementById('addAvailableQty').value = '';
+  }
+}, 500); // 500ms delay
 
-// Update product info when invoice is selected (for edit order)
-function updateEditProductInfo() {
+// Update product info when invoice is selected (for edit order) - DEBOUNCED
+const debouncedUpdateEditProductInfo = debounce(function() {
   const invoiceInput = document.getElementById('editInvoiceNumber');
   const invoiceNumber = invoiceInput.value.trim();
-  const orderId = document.getElementById('editOrderId').value;
+  const oldInvoice = invoiceInput.getAttribute('data-old-invoice');
+  const oldQuantity = parseInt(invoiceInput.getAttribute('data-old-quantity') || 0);
   
   if (!invoiceNumber) {
     document.getElementById('editProductInfo').value = '';
@@ -382,39 +417,73 @@ function updateEditProductInfo() {
     return;
   }
   
-  // Check if the invoice number exists in our map
+  // Check if the invoice number exists in our map for instant feedback
   if (invoiceDataMap[invoiceNumber]) {
     const invoiceData = invoiceDataMap[invoiceNumber];
     document.getElementById('editProductInfo').value = invoiceData.product || '';
   } else {
+    // If not found in map, clear the field (we'll validate on submit)
     document.getElementById('editProductInfo').value = '';
   }
   
-  // Fetch adjusted available quantity from server (includes old order quantity)
-  fetch(`/get-purchase-info-edit/${invoiceNumber}/${orderId}`)
-    .then(res => {
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data.success) {
-        // Show the adjusted remaining (which includes the old order quantity)
-        document.getElementById('editAvailableQty').value = data.adjusted_remaining;
-      } else {
-        alert(data.message);
+  // Fetch available quantity from server - only if invoice is at least 3 characters
+  if (invoiceNumber.length >= 3) {
+    fetch(`/get-purchase-info/${invoiceNumber}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.success) {
+          let available = data.remaining_quantity;
+          
+          // If editing the same invoice, add back the old order quantity
+          // because it will be available for reallocation
+          if (invoiceNumber === oldInvoice) {
+            available += oldQuantity;
+          }
+          
+          document.getElementById('editAvailableQty').value = available;
+          document.getElementById('editProductInfo').value = data.product_name || '';
+          // If invoice was valid, remove any error styling
+          invoiceInput.style.borderColor = '';
+        } else {
+          // If invoice not found, clear the fields
+          document.getElementById('editProductInfo').value = '';
+          document.getElementById('editAvailableQty').value = '';
+          // Show a subtle hint that invoice is not valid
+          invoiceInput.style.borderColor = data.message ? '#ff4444' : '';
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        document.getElementById('editProductInfo').value = '';
         document.getElementById('editAvailableQty').value = '';
-      }
-    })
-    .catch(err => {
-      console.error('Error:', err);
-      document.getElementById('editAvailableQty').value = '';
-    });
-}
+      });
+  } else {
+    // Clear fields if invoice is too short
+    document.getElementById('editProductInfo').value = '';
+    document.getElementById('editAvailableQty').value = '';
+  }
+}, 500); // 500ms delay
 
 // Form submission handlers
 document.addEventListener('DOMContentLoaded', function() {
+  // Get the input elements
+  const addInvoiceInput = document.getElementById('addInvoiceNumber');
+  const editInvoiceInput = document.getElementById('editInvoiceNumber');
+  
+  // Set up debounced event listeners
+  if (addInvoiceInput) {
+    addInvoiceInput.addEventListener('input', debouncedUpdateProductInfo);
+  }
+  
+  if (editInvoiceInput) {
+    editInvoiceInput.addEventListener('input', debouncedUpdateEditProductInfo);
+  }
+  
   // Add Order Form Submission
   const addOrderForm = document.getElementById('addOrderForm');
   if (addOrderForm) {
@@ -444,12 +513,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
-      // Validate invoice number exists
-      if (!invoiceDataMap[invoiceNumber]) {
-        alert('Invalid invoice number. Please select a valid invoice from the list.');
-        return;
-      }
-
+      // Validate invoice number exists in our map or in the database
+      // We'll let the server validate it to avoid false negatives
       fetch('/add-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -496,12 +561,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const invoiceNumber = document.getElementById('editInvoiceNumber').value.trim();
       const quantity = document.getElementById('editOrderQuantity').value;
 
-      // Validate invoice number exists
-      if (!invoiceDataMap[invoiceNumber]) {
-        alert('Invalid invoice number. Please select a valid invoice from the list.');
-        return;
-      }
-
       fetch(`/edit-order/${orderId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -539,15 +598,27 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Add keyboard navigation for invoice input
-  const addInvoiceInput = document.getElementById('addInvoiceNumber');
-  const editInvoiceInput = document.getElementById('editInvoiceNumber');
-  
   [addInvoiceInput, editInvoiceInput].forEach(input => {
     if (input) {
       input.addEventListener('keydown', function(e) {
         // If user presses Enter in the invoice field, prevent form submission
         if (e.key === 'Enter') {
           e.preventDefault();
+          // Trigger the debounced update function immediately
+          if (input.id === 'addInvoiceNumber') {
+            debouncedUpdateProductInfo();
+          } else {
+            debouncedUpdateEditProductInfo();
+          }
+        }
+      });
+      
+      // Also update on blur (when user clicks away)
+      input.addEventListener('blur', function() {
+        if (input.id === 'addInvoiceNumber') {
+          debouncedUpdateProductInfo();
+        } else {
+          debouncedUpdateEditProductInfo();
         }
       });
     }
@@ -571,6 +642,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
