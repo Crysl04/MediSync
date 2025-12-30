@@ -248,7 +248,7 @@ function closeAddOrderModal() {
 
 // Edit Order Modal functions
 function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit) {
-  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit}); // Debug log
+  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit});
   
   document.getElementById('editOrderId').value = orderId;
   document.getElementById('editInvoiceNumber').value = invoiceNumber;
@@ -337,9 +337,22 @@ function updateProductInfo() {
 // Update product info when invoice is selected (for edit order)
 function updateEditProductInfo() {
   const invoiceSelect = document.getElementById('editInvoiceNumber');
-  const selectedOption = invoiceSelect.options[invoiceSelect.selectedIndex];
+  if (!invoiceSelect) {
+    console.error("editInvoiceNumber element not found");
+    return;
+  }
   
-  if (!selectedOption.value) {
+  const selectedIndex = invoiceSelect.selectedIndex;
+  if (selectedIndex < 0) {
+    console.error("No option selected in editInvoiceNumber");
+    document.getElementById('editProductInfo').value = '';
+    document.getElementById('editAvailableQty').value = '';
+    return;
+  }
+  
+  const selectedOption = invoiceSelect.options[selectedIndex];
+  
+  if (!selectedOption || !selectedOption.value) {
     document.getElementById('editProductInfo').value = '';
     document.getElementById('editAvailableQty').value = '';
     return;
@@ -349,7 +362,7 @@ function updateEditProductInfo() {
   const productName = selectedOption.getAttribute('data-product');
   
   // Set the product info field (only this exists)
-  document.getElementById('editProductInfo').value = productName;
+  document.getElementById('editProductInfo').value = productName || '';
   
   // Fetch available quantity
   fetch(`/get-purchase-info/${invoiceNumber}`)
@@ -501,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
 
 
