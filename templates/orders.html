@@ -25,7 +25,6 @@
       </button>
       <div id="orderFilterOptions" class="filter-options" style="display: none;">
         <div class="filter-group">
-          <!-- Change "Batch Number" to "Invoice Number" -->
           <label>Invoice Number:</label>
           <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." />
         </div>
@@ -55,18 +54,19 @@
         {% if orders %}
           {% for order in orders %}
             <tr data-order-id="{{ order[0] }}" 
-                data-invoice="{{ order[5] }}"
+                data-invoice="{{ order[6] }}"
                 data-quantity="{{ order[2] }}" 
                 data-date="{{ order[4] }}" 
                 data-customer="{{ order[5] }}">
-              <td>{{ order[5] if order[5] else 'N/A' }}</td> <!-- Invoice Number -->
-              <td>{{ order[4] }}</td> <!-- Order Date -->
-              <td>{{ order[5] }}</td> <!-- Customer -->
-              <td>{{ order[1] }}</td> <!-- Product Name -->
-              <td>{{ order[2] }}</td> <!-- Quantity -->
-              <td>{{ order[7] if order[7] else '1' }}</td> <!-- Quantity per Box -->
+              <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number (index 6) -->
+              <td>{{ order[4] }}</td> <!-- Order Date (index 4) -->
+              <td>{{ order[5] }}</td> <!-- Customer (index 5) -->
+              <td>{{ order[1] }}</td> <!-- Product Name (index 1) -->
+              <td>{{ order[2] }}</td> <!-- Quantity (index 2) -->
+              <td>{{ order[7] if order[7] else '1' }}</td> <!-- Quantity per Box (index 7) -->
               <td>
-                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[5] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[7] if order[7] else 1 }}')">Edit</button>
+                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[7] if order[7] else 1 }}')">Edit</button>
+                <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
               </td>
             </tr>
           {% endfor %}
@@ -229,12 +229,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const datalist = document.getElementById('invoiceNumbersList');
   const options = datalist ? datalist.querySelectorAll('option') : [];
   
-  // Populate the invoice data map
+  // Populate the invoice data map (removed dosage and unit references)
   options.forEach(option => {
     invoiceDataMap[option.value] = {
-      product: option.getAttribute('data-product'),
-      dosage: option.getAttribute('data-dosage'),
-      unit: option.getAttribute('data-unit')
+      product: option.getAttribute('data-product')
     };
   });
   
@@ -475,9 +473,8 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
           data.products.forEach(product => {
             const option = document.createElement('option');
             option.value = product.product_id;
-            // Format: "Product Name (Dosage) [Unit] - X pcs/box"
+            // Format: "Product Name - X pcs/box"
             let displayText = product.product_name;
-
             displayText += ` - ${product.quantity_per_box || 1} pcs/box`;
             option.textContent = displayText;
             option.setAttribute('data-remaining', product.remaining_quantity);
@@ -503,7 +500,7 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
         }
         
         // If we have a preset product (for edit mode), select it
-        if (presetProductName && presetDosage !== undefined && presetUnit !== undefined && productSelect) {
+        if (presetProductName && productSelect) {
           // Try to find the matching product
           let foundIndex = -1;
           for (let i = 0; i < productsArray.length; i++) {
@@ -892,4 +889,3 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
-
