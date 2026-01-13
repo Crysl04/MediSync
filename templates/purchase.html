@@ -139,16 +139,17 @@
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
       
+      <!-- In your purchase.html modal form -->
       <label>Supplier:</label><br>
       <select name="supplier" id="supplierSelect" onchange="toggleOtherSupplier()" required>
-        <option value="">Select Supplier</option>
-        {% for supplier in suppliers %}
-          <option value="{{ supplier }}">{{ supplier }}</option>
-        {% endfor %}
-        <option value="__other__">Other (enter below)</option>
+          <option value="">Select Supplier</option>
+          {% for supplier in suppliers %}
+              <option value="{{ supplier }}">{{ supplier }}</option>
+          {% endfor %}
+          <option value="__other__">Other (enter below)</option>
       </select>
       <div id="otherSupplierGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="otherSupplierInput" placeholder="Enter supplier name">
+          <input type="text" id="otherSupplierInput" placeholder="Enter supplier name" name="other_supplier">
       </div>
       <br><br>
 
@@ -487,14 +488,14 @@ function deletePurchase(id) {
 }
 
 function toggleOtherSupplier() {
-  const supplierSelect = document.getElementById('supplierSelect');
-  const otherGroup = document.getElementById('otherSupplierGroup');
-  
-  if (supplierSelect.value === '__other__') {
-    otherGroup.style.display = 'block';
-  } else {
-    otherGroup.style.display = 'none';
-  }
+    const supplierSelect = document.getElementById('supplierSelect');
+    const otherGroup = document.getElementById('otherSupplierGroup');
+    
+    if (supplierSelect.value === '__other__') {
+        otherGroup.style.display = 'block';
+    } else {
+        otherGroup.style.display = 'none';
+    }
 }
 
 // Add keyboard navigation for product search
@@ -582,3 +583,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
