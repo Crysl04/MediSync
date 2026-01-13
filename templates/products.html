@@ -68,10 +68,12 @@
 
   <div class="products-table">
     <table id="productsTable">
+      <!-- Update the table headers -->
       <thead>
         <tr>
           <th><button class="sort-btn" data-sort="code">Item Code</button></th>
           <th><button class="sort-btn" data-sort="name">Item Name</button></th>
+          <th>Brand Name</th>
           <th><button class="sort-btn" data-sort="type">Type</button></th>
           <th><button class="sort-btn" data-sort="category">Category</button></th>
           <th><button class="sort-btn" data-sort="quantity">Stock Quantity</button></th>
@@ -85,13 +87,14 @@
         <tr>
           <td>{{ product[0] }}</td>
           <td>{{ product[1] }}</td>
-          <td>{{ product[2] }}</td> <!-- Type -->
-          <td>{{ product[3] }}</td> <!-- Category -->
-          <td>{{ product[4] }}</td> <!-- Stock Quantity -->
+          <td>{{ product[2] if product[2] else '' }}</td> <!-- Brand Name -->
+          <td>{{ product[3] }}</td> <!-- Type -->
+          <td>{{ product[4] }}</td> <!-- Category -->
+          <td>{{ product[5] }}</td> <!-- Stock Quantity -->
           <td>
-            {% if product[5] == 'in stock' %}
+            {% if product[6] == 'in stock' %}
               <span class="status in">✅ In stock</span>
-            {% elif product[5] == 'low stock' %}
+            {% elif product[6] == 'low stock' %}
               <span class="status low">⚠️ Low stock</span>
             {% else %}
               <span class="status out">🔴 Out of stock</span>
@@ -105,42 +108,39 @@
         {% endfor %}
         {% else %}
         <tr>
-          <td colspan="7" style="text-align: center;">No products found</td>
+          <td colspan="8" style="text-align: center;">No products found</td>
         </tr>
         {% endif %}
       </tbody>
-    </table>
-  </div>
-</main>
-
-<div id="productModal" class="modal" style="display:none;">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
-    <h2 id="modalTitle">Add Product</h2>
-    <!-- In products.html modal form -->
-    <form id="productForm" method="POST" action="/add-product">
-      <label>Product Name:</label><br>
-      <input type="text" name="product_name" required><br><br>
       
-      <label>Product Type:</label><br>
-      <select name="product_type" required>
-        <option value="">Select Type</option>
-        <option value="medicine">Medicine</option>
-        <option value="supply">Supplies</option>
-      </select><br><br>
-      
-      <label>Category:</label><br>
-      <select name="category_id" required>
-        <option value="">Select Category</option>
-        {% for cat in categories %}
-          <option value="{{ cat[0] }}">{{ cat[1] }}</option>
-        {% endfor %}
-      </select><br><br>
-      
-      <div style="text-align:right;">
-        <button type="button" onclick="closeProductModal()">Cancel</button>
-        <button type="submit" id="modalSubmit">Add</button>
-      </div>
-    </form>
+      <!-- Update the product form -->
+      <form id="productForm" method="POST" action="/add-product">
+        <label>Product Name:</label><br>
+        <input type="text" name="product_name" required><br><br>
+        
+        <label>Brand Name:</label><br>
+        <input type="text" name="brand_name" placeholder="e.g., Pfizer, Johnson & Johnson"><br><br>
+        
+        <label>Product Type:</label><br>
+        <select name="product_type" required>
+          <option value="">Select Type</option>
+          <option value="medicine">Medicine</option>
+          <option value="supply">Supplies</option>
+        </select><br><br>
+        
+        <label>Category:</label><br>
+        <select name="category_id" required>
+          <option value="">Select Category</option>
+          {% for cat in categories %}
+            <option value="{{ cat[0] }}">{{ cat[1] }}</option>
+          {% endfor %}
+        </select><br><br>
+        
+        <div style="text-align:right;">
+          <button type="button" onclick="closeProductModal()">Cancel</button>
+          <button type="submit" id="modalSubmit">Add</button>
+        </div>
+      </form>
   </div>
 </div>
 
@@ -207,10 +207,9 @@
   
   // Correct indices based on your table structure
   const name = row.cells[1].textContent;
-  const dosage = row.cells[2].textContent;
+  const brandName = row.cells[2].textContent;
   const type = row.cells[3].textContent;
-  const categoryText = row.cells[4].textContent; // Category is at index 4, not 3
-  const unitText = row.cells[5].textContent;
+  const categoryText = row.cells[4].textContent;
   
   // Find category option
   const categoryOption = [...document.querySelectorAll('select[name="category_id"] option')]
@@ -223,16 +222,9 @@
   form.action = '/edit-product/' + id;
 
   form.product_name.value = name;
-  form.dosage.value = dosage || '';
+  form.brand_name.value = brandName;
   form.product_type.value = type;
   form.category_id.value = categoryId;
-  
-  // Also set unit_id if you have a unit field in your form
-  if (form.unit_id) {
-    const unitOption = [...document.querySelectorAll('select[name="unit_id"] option')]
-                      .find(opt => opt.textContent == unitText);
-    form.unit_id.value = unitOption ? unitOption.value : '';
-  }
 
   form.onsubmit = function(e) {
     e.preventDefault();
@@ -245,7 +237,7 @@
   }
 
   openProductModal();
-} 
+}
 
 function deleteProduct(id) {
   if(confirm('Are you sure you want to delete this product?')) {
@@ -368,6 +360,7 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
+
 
 
 
