@@ -46,6 +46,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS Product (
             id SERIAL PRIMARY KEY,
             product_name TEXT NOT NULL,
+            brand_name TEXT,
             product_type TEXT NOT NULL,
             category_id INTEGER REFERENCES Category(id),
             stock_quantity INTEGER NOT NULL DEFAULT 0,
@@ -347,9 +348,9 @@ def products():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Updated query WITHOUT dosage and unit
+        # Updated query WITH brand_name
         c.execute("""
-            SELECT p.id, p.product_name, p.product_type, 
+            SELECT p.id, p.product_name, p.brand_name, p.product_type, 
                    c.category_name, p.stock_quantity, p.stock_status
             FROM Product p
             LEFT JOIN Category c ON p.category_id = c.id
@@ -389,6 +390,7 @@ def purchases():
         SELECT 
             pu.id, 
             pr.product_name,
+            pr.brand_name,
             pu.batch_number, 
             pu.purchase_quantity, 
             pu.remaining_quantity, 
@@ -404,9 +406,9 @@ def purchases():
     """)
         purchases = c.fetchall()
         
-        # Get products WITHOUT dosage and unit for dropdown
+        # Get products WITH brand_name for dropdown
         c.execute("""
-            SELECT p.id, p.product_name
+            SELECT p.id, p.product_name, p.brand_name
             FROM Product p
             ORDER BY p.product_name ASC
         """)
@@ -441,18 +443,18 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        # Now WITHOUT dosage and unit
+        # Now WITH brand_name
         c.execute("""
-            SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
+            SELECT o.order_id, o.product_name, o.brand_name, o.order_quantity, o.batch_number, 
                    o.order_date, o.customer, o.invoice_number, o.quantity_per_box
             FROM "Order" o
             ORDER BY o.order_date DESC
         """)
         orders = c.fetchall()
         
-        # Get invoice data WITHOUT dosage and unit
+        # Get invoice data WITH brand_name
         c.execute("""
-            SELECT DISTINCT pu.invoice_number, pr.product_name
+            SELECT DISTINCT pu.invoice_number, pr.product_name, pr.brand_name
             FROM purchase pu
             JOIN product pr ON pu.product_id = pr.id
             WHERE pu.remaining_quantity > 0 AND pu.invoice_number IS NOT NULL
@@ -515,17 +517,18 @@ def add_product():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Get form data WITHOUT dosage and unit
+        # Get form data WITH brand_name
         product_name = request.form['product_name']
+        brand_name = request.form.get('brand_name', '')
         product_type = request.form['product_type']
         category_id = request.form['category_id']
         
-        # Insert new product WITHOUT dosage and unit
+        # Insert new product WITH brand_name
         c.execute("""
-            INSERT INTO Product (product_name, product_type, category_id, stock_quantity)
-            VALUES (%s, %s, %s, 0)
+            INSERT INTO Product (product_name, brand_name, product_type, category_id, stock_quantity)
+            VALUES (%s, %s, %s, %s, 0)
             RETURNING id
-        """, (product_name, product_type, category_id))
+        """, (product_name, brand_name, product_type, category_id))
         
         conn.commit()
         log_activity(session['username'], f"Added product '{product_name}'")
@@ -546,6 +549,7 @@ def add_product():
 @login_required
 def edit_product(product_id):
     product_name = request.form['product_name']
+    brand_name = request.form.get('brand_name', '')
     product_type = request.form['product_type']
     category_id = request.form['category_id']
 
@@ -556,9 +560,9 @@ def edit_product(product_id):
         c = conn.cursor()
         c.execute("""
             UPDATE Product
-            SET product_name = %s, product_type = %s, category_id = %s
+            SET product_name = %s, brand_name = %s, product_type = %s, category_id = %s
             WHERE id = %s
-        """, (product_name, product_type, category_id, product_id))
+        """, (product_name, brand_name, product_type, category_id, product_id))
 
         conn.commit()
         log_activity(session['username'], f"Edited product ID {product_id}")
@@ -569,7 +573,6 @@ def edit_product(product_id):
         if conn:
             conn.rollback()
             return jsonify({'success': False, 'message': f'Error updating product: {str(e)}'})
-
     finally:
         if conn:
             conn.close()
@@ -612,9 +615,9 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
-        # Get product name WITHOUT dosage and unit
+        # Get product name and brand name
         c.execute("""
-            SELECT p.product_name
+            SELECT p.product_name, p.brand_name
             FROM Product p
             WHERE p.id = %s
         """, (product_id,))
@@ -624,15 +627,16 @@ def add_purchase():
             return jsonify({'success': False, 'message': 'Product not found'})
             
         product_name = result[0]
+        brand_name = result[1] if result[1] else ''
 
-        # Insert WITHOUT dosage and unit_name
+        # Insert WITH brand_name
         c.execute("""
             INSERT INTO Purchase 
-            (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, quantity_per_box))
+            (product_id, product_name, brand_name, purchase_quantity, remaining_quantity, 
+             expiration_date, supplier, invoice_number, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (product_id, product_name, brand_name, purchase_quantity, purchase_quantity, 
+              expiration_date, supplier, invoice_number, quantity_per_box))
 
         conn.commit()
         log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
@@ -731,7 +735,7 @@ def get_products_by_invoice(invoice_number):
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute("""
-            SELECT pu.product_id, pr.product_name, 
+            SELECT pu.product_id, pr.product_name, pr.brand_name,
                    pu.batch_number, pu.remaining_quantity, pu.quantity_per_box
             FROM purchase pu
             JOIN product pr ON pu.product_id = pr.id
@@ -745,9 +749,10 @@ def get_products_by_invoice(invoice_number):
             products.append({
                 'product_id': row[0],
                 'product_name': row[1],
-                'batch_number': row[2],
-                'remaining_quantity': row[3],
-                'quantity_per_box': row[4] or 1  # Default to 1 if null
+                'brand_name': row[2] or '',
+                'batch_number': row[3],
+                'remaining_quantity': row[4],
+                'quantity_per_box': row[5] or 1
             })
         
         if products:
@@ -771,6 +776,7 @@ def add_order():
     product_id = data.get('product_id')
     batch_number = data.get('batch_number')
     product_name = data.get('product_name')
+    brand_name = data.get('brand_name', '')
     quantity_per_box = int(data.get('quantity_per_box', 1))
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
@@ -807,13 +813,13 @@ def add_order():
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
         print(f"DEBUG: Inserting order...")
-        # Insert order WITHOUT dosage and unit_name
+        # Insert order WITH brand_name
         c.execute("""
             INSERT INTO "Order" 
-            (product_id, product_name, order_quantity, batch_number, 
+            (product_id, product_name, brand_name, order_quantity, batch_number, 
              customer, invoice_number, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (product_id, product_name, order_quantity, batch_number, 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (product_id, product_name, brand_name, order_quantity, batch_number, 
               customer, invoice_number, quantity_per_box))
         
         print(f"DEBUG: Updating purchase remaining quantity...")
