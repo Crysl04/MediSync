@@ -347,13 +347,12 @@ def products():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Updated query to include dosage and unit
+        # Updated query WITHOUT dosage and unit
         c.execute("""
-            SELECT p.id, p.product_name, p.dosage, p.product_type, 
-                   c.category_name, u.unit_name, p.stock_quantity, p.stock_status
+            SELECT p.id, p.product_name, p.product_type, 
+                   c.category_name, p.stock_quantity, p.stock_status
             FROM Product p
             LEFT JOIN Category c ON p.category_id = c.id
-            LEFT JOIN Unit u ON p.unit_id = u.id
             ORDER BY p.id DESC
         """)
         products = c.fetchall()
@@ -361,21 +360,17 @@ def products():
         c.execute("SELECT id, category_name FROM Category")
         categories = c.fetchall()
         
-        c.execute("SELECT id, unit_name FROM Unit ORDER BY unit_name")
-        units = c.fetchall()
-        
         c.execute("SELECT DISTINCT product_type FROM Product")
         product_types = [row[0] for row in c.fetchall()]
         
         return render_template('products.html', 
                              products=products,
                              categories=categories,
-                             units=units,
                              product_types=product_types)
     except Exception as e:
         print(f"Error in products route: {str(e)}")
         flash(f'Error loading products: {str(e)}', 'error')
-        return render_template('products.html', products=[], categories=[], units=[], product_types=[])
+        return render_template('products.html', products=[], categories=[], product_types=[])
     finally:
         if conn is not None:
             conn.close()
@@ -393,28 +388,26 @@ def purchases():
         c.execute("""
         SELECT 
             pu.id, 
-            pr.product_name, 
-            pu.dosage,
+            pr.product_name,
             pu.batch_number, 
             pu.purchase_quantity, 
-            pu.unit_name,
             pu.remaining_quantity, 
             pu.expiration_date, 
             pu.status, 
             pu.purchase_date,
             pu.supplier,
-            pu.invoice_number
+            pu.invoice_number,
+            pu.quantity_per_box
         FROM Purchase pu
         LEFT JOIN Product pr ON pu.product_id = pr.id
         ORDER BY pu.purchase_date DESC
     """)
         purchases = c.fetchall()
         
-        # Get products with dosage and unit for dropdown
+        # Get products WITHOUT dosage and unit for dropdown
         c.execute("""
-            SELECT p.id, p.product_name, p.dosage, u.unit_name
+            SELECT p.id, p.product_name
             FROM Product p
-            LEFT JOIN Unit u ON p.unit_id = u.id
             ORDER BY p.product_name ASC
         """)
         products = c.fetchall()
@@ -448,21 +441,20 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        # Now using stored unit_name, dosage, and quantity_per_box from Order table
+        # Now WITHOUT dosage and unit
         c.execute("""
             SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
-                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage, o.quantity_per_box
+                   o.order_date, o.customer, o.invoice_number, o.quantity_per_box
             FROM "Order" o
             ORDER BY o.order_date DESC
         """)
         orders = c.fetchall()
         
-        # Get invoice data from purchase table, not order table
+        # Get invoice data WITHOUT dosage and unit
         c.execute("""
-            SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
+            SELECT DISTINCT pu.invoice_number, pr.product_name
             FROM purchase pu
             JOIN product pr ON pu.product_id = pr.id
-            LEFT JOIN unit u ON pr.unit_id = u.id
             WHERE pu.remaining_quantity > 0 AND pu.invoice_number IS NOT NULL
             ORDER BY pu.invoice_number ASC
         """)
@@ -523,19 +515,17 @@ def add_product():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Get form data with new fields
+        # Get form data WITHOUT dosage and unit
         product_name = request.form['product_name']
         product_type = request.form['product_type']
         category_id = request.form['category_id']
-        dosage = request.form.get('dosage', '')
-        unit_id = request.form.get('unit_id')
         
-        # Insert new product with dosage and unit
+        # Insert new product WITHOUT dosage and unit
         c.execute("""
-            INSERT INTO Product (product_name, product_type, category_id, dosage, unit_id, stock_quantity)
-            VALUES (%s, %s, %s, %s, %s, 0)
+            INSERT INTO Product (product_name, product_type, category_id, stock_quantity)
+            VALUES (%s, %s, %s, 0)
             RETURNING id
-        """, (product_name, product_type, category_id, dosage, unit_id))
+        """, (product_name, product_type, category_id))
         
         conn.commit()
         log_activity(session['username'], f"Added product '{product_name}'")
@@ -622,11 +612,10 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
-        # Get product name, dosage, and unit_name from product table
+        # Get product name WITHOUT dosage and unit
         c.execute("""
-            SELECT p.product_name, p.dosage, u.unit_name 
+            SELECT p.product_name
             FROM Product p
-            LEFT JOIN Unit u ON p.unit_id = u.id
             WHERE p.id = %s
         """, (product_id,))
         result = c.fetchone()
@@ -634,17 +623,16 @@ def add_purchase():
         if not result:
             return jsonify({'success': False, 'message': 'Product not found'})
             
-        product_name, dosage, unit_name = result
-        dosage = dosage if dosage else ''
-        unit_name = unit_name if unit_name else ''
+        product_name = result[0]
 
+        # Insert WITHOUT dosage and unit_name
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_name, dosage, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_name, dosage, quantity_per_box))
+              supplier, invoice_number, quantity_per_box))
 
         conn.commit()
         log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
@@ -682,23 +670,13 @@ def edit_purchase(purchase_id):
 
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
-        # Get unit_name and dosage from product table
-        c.execute("""
-            SELECT p.dosage, u.unit_name 
-            FROM Product p
-            LEFT JOIN Unit u ON p.unit_id = u.id
-            WHERE p.id = %s
-        """, (product_id,))
-        result = c.fetchone()
-        dosage = result[0] if result else ''
-        unit_name = result[1] if result else ''
-
+        # Update WITHOUT dosage and unit_name
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, quantity_per_box=%s
+                         expiration_date=%s, invoice_number=%s, quantity_per_box=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, 
-                   expiration_date, invoice_number, unit_name, dosage, quantity_per_box, purchase_id))
+                   expiration_date, invoice_number, quantity_per_box, purchase_id))
         conn.commit()
         log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
@@ -710,7 +688,7 @@ def edit_purchase(purchase_id):
     finally:
         if conn:
             conn.close()
-
+            
 @app.route('/delete-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
 def delete_purchase(purchase_id):
@@ -753,11 +731,10 @@ def get_products_by_invoice(invoice_number):
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         c.execute("""
-            SELECT pu.product_id, pr.product_name, pr.dosage, u.unit_name, 
+            SELECT pu.product_id, pr.product_name, 
                    pu.batch_number, pu.remaining_quantity, pu.quantity_per_box
             FROM purchase pu
             JOIN product pr ON pu.product_id = pr.id
-            LEFT JOIN unit u ON pr.unit_id = u.id
             WHERE pu.invoice_number = %s AND pu.remaining_quantity > 0
             ORDER BY pr.product_name, pu.batch_number
         """, (invoice_number,))
@@ -768,11 +745,9 @@ def get_products_by_invoice(invoice_number):
             products.append({
                 'product_id': row[0],
                 'product_name': row[1],
-                'dosage': row[2] if row[2] else '',
-                'unit_name': row[3] if row[3] else '',
-                'batch_number': row[4],
-                'remaining_quantity': row[5],
-                'quantity_per_box': row[6] or 1  # Default to 1 if null
+                'batch_number': row[2],
+                'remaining_quantity': row[3],
+                'quantity_per_box': row[4] or 1  # Default to 1 if null
             })
         
         if products:
@@ -796,8 +771,6 @@ def add_order():
     product_id = data.get('product_id')
     batch_number = data.get('batch_number')
     product_name = data.get('product_name')
-    dosage = data.get('dosage', '')
-    unit_name = data.get('unit_name', '')
     quantity_per_box = int(data.get('quantity_per_box', 1))
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
@@ -834,14 +807,14 @@ def add_order():
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
         print(f"DEBUG: Inserting order...")
-        # Insert order with all details including quantity_per_box
+        # Insert order WITHOUT dosage and unit_name
         c.execute("""
             INSERT INTO "Order" 
             (product_id, product_name, order_quantity, batch_number, 
-             customer, invoice_number, unit_name, dosage, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             customer, invoice_number, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (product_id, product_name, order_quantity, batch_number, 
-              customer, invoice_number, unit_name, dosage, quantity_per_box))
+              customer, invoice_number, quantity_per_box))
         
         print(f"DEBUG: Updating purchase remaining quantity...")
         # Update remaining quantity in purchase
