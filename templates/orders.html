@@ -68,7 +68,14 @@
               <td>{{ order[3] }}</td> <!-- Quantity (index 3) -->
               <td>{{ order[8] if order[8] else '1' }}</td> <!-- Quantity per Box (index 8) -->
               <td>
-                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[7] }}', '{{ order[3] }}', '{{ order[6] }}', '{{ order[8] if order[8] else 1 }}', '{{ order[2] if order[2] else "" }}')">Edit</button>
+                <button class="edit-order-btn" 
+                        data-order-id="{{ order[0] }}"
+                        data-product-name="{{ order[1] }}"
+                        data-invoice="{{ order[7] }}"
+                        data-quantity="{{ order[3] }}"
+                        data-customer="{{ order[6] }}"
+                        data-quantity-per-box="{{ order[8] if order[8] else 1 }}"
+                        data-brand-name="{{ order[2] if order[2] else '' }}">Edit</button>
                 <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
               </td>
             </tr>
@@ -612,6 +619,23 @@ function updateAvailableQuantityForEdit() {
 function setupFormHandlers() {
   console.log("Setting up form handlers...");
   
+  // Add event listeners for all edit buttons
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-order-btn')) {
+      const button = e.target;
+      const orderId = button.getAttribute('data-order-id');
+      const productName = button.getAttribute('data-product-name');
+      const invoiceNumber = button.getAttribute('data-invoice');
+      const quantity = button.getAttribute('data-quantity');
+      const customer = button.getAttribute('data-customer');
+      const quantityPerBox = button.getAttribute('data-quantity-per-box');
+      const brandName = button.getAttribute('data-brand-name');
+      
+      openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, quantityPerBox, brandName);
+    }
+  });
+
+  
   // Add Order Form Submission
   const addOrderForm = document.getElementById('addOrderForm');
   if (addOrderForm) {
@@ -902,3 +926,4 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
