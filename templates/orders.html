@@ -636,7 +636,11 @@ function setupFormHandlers() {
       const customerSelect = document.getElementById('addCustomer');
       
       if (!customerSelect) {
-        alert('Customer select not found');
+        showPopup({
+          title: 'Error',
+          message: 'Customer select not found',
+          type: 'error'
+        });
         return;
       }
       
@@ -644,7 +648,11 @@ function setupFormHandlers() {
       if (customerSelect.value === '__other__') {
         const otherCustomer = document.getElementById('addOtherCustomerInput')?.value;
         if (!otherCustomer || otherCustomer.trim() === '') {
-          alert('Please enter a customer name');
+          showPopup({
+            title: 'Warning',
+            message: 'Please enter a customer name',
+            type: 'warning'
+          });
           return;
         }
         customerValue = otherCustomer;
@@ -658,39 +666,63 @@ function setupFormHandlers() {
       const quantity = parseInt(document.getElementById('addOrderQuantity')?.value || 0);
 
       if(!invoiceNumber || !productId || isNaN(quantity) || quantity <= 0 || !customerValue) {
-        alert('Please fill all fields correctly.');
+        showPopup({
+          title: 'Warning',
+          message: 'Please fill all fields correctly.',
+          type: 'warning'
+        });
         return;
       }
       
       // Get batch number and product name from selected product
       const selectedProduct = currentProductsForAdd.find(p => p.product_id == productId);
       if (!selectedProduct) {
-        alert('Please select a valid product.');
+        showPopup({
+          title: 'Warning',
+          message: 'Please select a valid product.',
+          type: 'warning'
+        });
         return;
       }
       
       // Validate quantity
       const availableQtyElem = document.getElementById('addAvailableQty');
       if (!availableQtyElem) {
-        alert('Available quantity field not found');
+        showPopup({
+          title: 'Error',
+          message: 'Available quantity field not found',
+          type: 'error'
+        });
         return;
       }
       
       const availableQty = parseInt(availableQtyElem.value);
       if (isNaN(availableQty)) {
-        alert('Cannot determine available quantity. Please select a product.');
+        showPopup({
+          title: 'Warning',
+          message: 'Cannot determine available quantity. Please select a product.',
+          type: 'warning'
+        });
         return;
       }
       
       if (quantity > availableQty) {
-        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
+        showPopup({
+          title: 'Error',
+          message: `Order quantity cannot exceed available quantity (${availableQty}).`,
+          type: 'error'
+        });
         return;
       }
       
       // Disable the submit button to prevent double submission
       const submitButton = this.querySelector('button[type="submit"]');
       if (!submitButton) {
-        alert('Submit button not found');
+        showPopup({
+          title: 'Error',
+          message: 'Submit button not found',
+          type: 'error'
+        });
         return;
       }
       
@@ -715,7 +747,12 @@ function setupFormHandlers() {
       })
       .then(res => res.json())
       .then(data => {
-        alert(data.message);
+        showPopup({
+          title: data.success ? 'Success' : 'Error',
+          message: data.message,
+          type: data.success ? 'success' : 'error'
+        });
+        
         if(data.success) {
           location.reload();
         } else {
@@ -725,7 +762,11 @@ function setupFormHandlers() {
       })
       .catch(err => {
         console.error('Error:', err);
-        alert('Error: ' + err);
+        showPopup({
+          title: 'Error',
+          message: 'An error occurred: ' + err.message,
+          type: 'error'
+        });
         submitButton.textContent = originalText;
         submitButton.disabled = false;
       });
@@ -749,7 +790,11 @@ function setupFormHandlers() {
       const customerSelect = document.getElementById('editCustomer');
       
       if (!customerSelect) {
-        alert('Customer select not found');
+        showPopup({
+          title: 'Error',
+          message: 'Customer select not found',
+          type: 'error'
+        });
         return;
       }
       
@@ -757,7 +802,11 @@ function setupFormHandlers() {
       if (customerSelect.value === '__other__') {
         const otherCustomer = document.getElementById('editOtherCustomerInput')?.value;
         if (!otherCustomer || otherCustomer.trim() === '') {
-          alert('Please enter a customer name');
+          showPopup({
+            title: 'Warning',
+            message: 'Please enter a customer name',
+            type: 'warning'
+          });
           return;
         }
         customerValue = otherCustomer;
@@ -772,39 +821,63 @@ function setupFormHandlers() {
       const quantity = parseInt(document.getElementById('editOrderQuantity')?.value || 0);
 
       if (!orderId || !invoiceNumber || !productId || isNaN(quantity) || quantity <= 0) {
-        alert('Please fill all fields correctly.');
+        showPopup({
+          title: 'Warning',
+          message: 'Please fill all fields correctly.',
+          type: 'warning'
+        });
         return;
       }
       
       // Get batch number and product name from selected product
       const selectedProduct = currentProductsForEdit.find(p => p.product_id == productId);
       if (!selectedProduct) {
-        alert('Please select a valid product.');
+        showPopup({
+          title: 'Warning',
+          message: 'Please select a valid product.',
+          type: 'warning'
+        });
         return;
       }
       
       // Validate quantity
       const availableQtyElem = document.getElementById('editAvailableQty');
       if (!availableQtyElem) {
-        alert('Available quantity field not found');
+        showPopup({
+          title: 'Error',
+          message: 'Available quantity field not found',
+          type: 'error'
+        });
         return;
       }
       
       const availableQty = parseInt(availableQtyElem.value);
       if (isNaN(availableQty)) {
-        alert('Cannot determine available quantity. Please select a product.');
+        showPopup({
+          title: 'Warning',
+          message: 'Cannot determine available quantity. Please select a product.',
+          type: 'warning'
+        });
         return;
       }
       
       if (quantity > availableQty) {
-        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
+        showPopup({
+          title: 'Error',
+          message: `Order quantity cannot exceed available quantity (${availableQty}).`,
+          type: 'error'
+        });
         return;
       }
       
       // Disable the submit button to prevent double submission
       const submitButton = this.querySelector('button[type="submit"]');
       if (!submitButton) {
-        alert('Submit button not found');
+        showPopup({
+          title: 'Error',
+          message: 'Submit button not found',
+          type: 'error'
+        });
         return;
       }
       
@@ -829,7 +902,12 @@ function setupFormHandlers() {
       })
       .then(res => res.json())
       .then(data => {
-        alert(data.message);
+        showPopup({
+          title: data.success ? 'Success' : 'Error',
+          message: data.message,
+          type: data.success ? 'success' : 'error'
+        });
+        
         if(data.success) {
           location.reload();
         } else {
@@ -839,7 +917,11 @@ function setupFormHandlers() {
       })
       .catch(err => {
         console.error('Error:', err);
-        alert('Error: ' + err);
+        showPopup({
+          title: 'Error',
+          message: 'An error occurred: ' + err.message,
+          type: 'error'
+        });
         submitButton.textContent = originalText;
         submitButton.disabled = false;
       });
@@ -899,18 +981,45 @@ function setupFormHandlers() {
 
 // Delete order
 function deleteOrder(orderId) {
-  if(confirm('Are you sure you want to delete this order?')) {
-    fetch(`/delete-order/${orderId}`, { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-        if(data.success) location.reload();
-      })
-      .catch(err => {
-        console.error('Error:', err);
-        alert('Error deleting order: ' + err);
-      });
-  }
+  showPopup({
+    title: 'Confirm Delete',
+    message: 'Are you sure you want to delete this order?',
+    type: 'warning',
+    duration: 10000, // 10 seconds for user to decide
+    buttons: [
+      {
+        text: 'Cancel',
+        class: 'btn-outline',
+        onClick: function() {
+          // Just close the popup, no action needed
+        }
+      },
+      {
+        text: 'Delete',
+        class: 'btn-filled',
+        onClick: function() {
+          fetch(`/delete-order/${orderId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              showPopup({
+                title: data.success ? 'Success' : 'Error',
+                message: data.message,
+                type: data.success ? 'success' : 'error'
+              });
+              if(data.success) location.reload();
+            })
+            .catch(err => {
+              console.error('Error:', err);
+              showPopup({
+                title: 'Error',
+                message: 'Error deleting order: ' + err.message,
+                type: 'error'
+              });
+            });
+        }
+      }
+    ]
+  });
 }
 </script>
 {% endblock %}
