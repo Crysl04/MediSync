@@ -242,63 +242,116 @@
   function editProduct(id) {
     const row = [...document.querySelectorAll('#productsTable tbody tr')].find(r => r.cells[0].textContent == id);
     
-    // CORRECTED INDICES
-    const name = row.cells[1].textContent;
-    const dosage = row.cells[2].textContent;
-    const type = row.cells[3].textContent;
-    const categoryText = row.cells[4].textContent;
-    const unitText = row.cells[5].textContent;
-    
-    // Find category option
-    const categoryOption = [...document.querySelectorAll('select[name="category_id"] option')]
-                         .find(opt => opt.textContent == categoryText);
-    const categoryId = categoryOption ? categoryOption.value : '';
-
-    document.getElementById('modalTitle').textContent = 'Edit Product';
-    document.getElementById('modalSubmit').textContent = 'Update';
-    const form = document.getElementById('productForm');
-    form.action = '/edit-product/' + id;
-
-    form.product_name.value = name;
-    form.dosage.value = dosage || '';
-    form.product_type.value = type;
-    form.category_id.value = categoryId;
-    
-    // Also set unit_id if you have a unit field in your form
-    if (form.unit_id) {
-      const unitOption = [...document.querySelectorAll('select[name="unit_id"] option')]
-                        .find(opt => opt.textContent == unitText);
-      form.unit_id.value = unitOption ? unitOption.value : '';
-    }
-
-    openProductModal();
-  } 
-
-  function deleteProduct(id) {
-    confirmAction('Are you sure you want to delete this product?', () => {
-      fetch(`/delete-product/${id}`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          showPopup({
-            title: data.success ? 'Success' : 'Error',
-            message: data.message,
-            type: data.success ? 'success' : 'error'
-          });
-          if(data.success) {
-            setTimeout(() => {
-              location.reload();
-            }, 1500);
-          }
-        })
-        .catch(err => {
-          showPopup({
-            title: 'Error',
-            message: 'Error deleting product: ' + err.message,
-            type: 'error'
-          });
+    fetch('/add-product', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showPopup({
+          title: 'Error',
+          message: 'Error adding product',
+          type: 'error'
         });
     });
   }
+
+ function editProduct(id) {
+  const row = [...document.querySelectorAll('#productsTable tbody tr')].find(r => r.cells[0].textContent == id);
+  
+  // Correct indices based on your table structure
+  const name = row.cells[1].textContent;
+  const dosage = row.cells[2].textContent;
+  const type = row.cells[3].textContent;
+  const categoryText = row.cells[4].textContent; // Category is at index 4, not 3
+  const unitText = row.cells[5].textContent;
+  
+  // Find category option
+  const categoryOption = [...document.querySelectorAll('select[name="category_id"] option')]
+                       .find(opt => opt.textContent == categoryText);
+  const categoryId = categoryOption ? categoryOption.value : '';
+
+  document.getElementById('modalTitle').textContent = 'Edit Product';
+  document.getElementById('modalSubmit').textContent = 'Update';
+  const form = document.getElementById('productForm');
+  form.action = '/edit-product/' + id;
+
+  form.product_name.value = name;
+  form.dosage.value = dosage || '';
+  form.product_type.value = type;
+  form.category_id.value = categoryId;
+  
+  // Also set unit_id if you have a unit field in your form
+  if (form.unit_id) {
+    const unitOption = [...document.querySelectorAll('select[name="unit_id"] option')]
+                      .find(opt => opt.textContent == unitText);
+    form.unit_id.value = unitOption ? unitOption.value : '';
+  }
+
+  form.onsubmit = function(e) {
+    e.preventDefault();
+    fetch(form.action, { method: 'POST', body: new FormData(form) })
+      .then(res => res.json())
+      .then(data => {
+        showPopup({
+          title: data.success ? 'Success' : 'Error',
+          message: data.message,
+          type: data.success ? 'success' : 'error'
+        });
+        if(data.success) location.reload();
+      });
+  }
+
+  openProductModal();
+} 
+
+function deleteProduct(id) {
+  showPopup({
+    title: 'Confirm Delete',
+    message: 'Are you sure you want to delete this product?',
+    type: 'warning',
+    duration: 10000,
+    buttons: [
+      {
+        text: 'Cancel',
+        class: 'btn-outline',
+        onClick: function() {
+          // Just close the popup, no action needed
+        }
+      },
+      {
+        text: 'Delete',
+        class: 'btn-filled',
+        onClick: function() {
+          fetch(`/delete-product/${id}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              showPopup({
+                title: data.success ? 'Success' : 'Error',
+                message: data.message,
+                type: data.success ? 'success' : 'error'
+              });
+              if(data.success) location.reload();
+            })
+            .catch(err => {
+              showPopup({
+                title: 'Error',
+                message: 'Error deleting product: ' + err.message,
+                type: 'error'
+              });
+            });
+        }
+      }
+    ]
+  });
+}
+
+
 
   function openProductModal() {
     document.getElementById('productModal').style.display = 'block';
