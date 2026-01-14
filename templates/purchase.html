@@ -243,7 +243,11 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   
   // Prevent double submission
   if (isSubmitting) {
-    alert('Please wait, form is already submitting...');
+    showPopup({
+      title: 'Info',
+      message: 'Please wait, form is already submitting...',
+      type: 'info'
+    });
     return;
   }
   
@@ -252,7 +256,11 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   const productIdInput = document.getElementById('productIdInput');
   
   if (!productIdInput.value) {
-    alert('Please select a valid product from the list.');
+    showPopup({
+      title: 'Warning',
+      message: 'Please select a valid product from the list.',
+      type: 'warning'
+    });
     productSearch.classList.add('product-invalid');
     return;
   }
@@ -271,7 +279,11 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   if (form.supplier.value === '__other__') {
     const otherSupplier = document.getElementById('otherSupplierInput').value;
     if (otherSupplier.trim() === '') {
-      alert('Please enter a supplier name');
+      showPopup({
+        title: 'Warning',
+        message: 'Please enter a supplier name',
+        type: 'warning'
+      });
       submitButton.textContent = originalButtonText;
       submitButton.disabled = false;
       isSubmitting = false;
@@ -286,9 +298,16 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   })
   .then(res => res.json())
   .then(data => {
-    alert(data.message);
+    showPopup({
+      title: data.success ? 'Success' : 'Error',
+      message: data.message,
+      type: data.success ? 'success' : 'error'
+    });
+    
     if (data.success) {
-      location.reload(); // reload only on success
+      setTimeout(() => {
+        location.reload(); // reload only on success
+      }, 1500); // Wait 1.5 seconds for user to see the success message
     } else {
       submitButton.textContent = originalButtonText;
       submitButton.disabled = false;
@@ -296,7 +315,11 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     }
   })
   .catch(err => {
-    alert('Error: ' + err);
+    showPopup({
+      title: 'Error',
+      message: 'An error occurred: ' + err.message,
+      type: 'error'
+    });
     submitButton.textContent = originalButtonText;
     submitButton.disabled = false;
     isSubmitting = false;
@@ -476,15 +499,48 @@ function updatePurchaseProductInfo() {
 }
 
 function deletePurchase(id) {
-  if (confirm("Are you sure you want to delete this purchase?")) {
-    fetch('/delete-purchase/' + id, { method: 'POST' })
-    .then(res => res.json())
-    .then(data => {
-      alert(data.message); // show either success or error message
-      if (data.success) location.reload(); // reload only on success
-    })
-    .catch(err => alert('Error deleting purchase: ' + err));
-  }
+  showPopup({
+    title: 'Confirm Delete',
+    message: 'Are you sure you want to delete this purchase?',
+    type: 'warning',
+    duration: 10000,
+    buttons: [
+      {
+        text: 'Cancel',
+        class: 'btn-outline',
+        onClick: function() {
+          // Just close the popup, no action needed
+        }
+      },
+      {
+        text: 'Delete',
+        class: 'btn-filled',
+        onClick: function() {
+          fetch(`/delete-purchase/${id}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              showPopup({
+                title: data.success ? 'Success' : 'Error',
+                message: data.message,
+                type: data.success ? 'success' : 'error'
+              });
+              if (data.success) {
+                setTimeout(() => {
+                  location.reload();
+                }, 1500);
+              }
+            })
+            .catch(err => {
+              showPopup({
+                title: 'Error',
+                message: 'Error deleting purchase: ' + err.message,
+                type: 'error'
+              });
+            });
+        }
+      }
+    ]
+  });
 }
 
 function toggleOtherSupplier() {
@@ -583,4 +639,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
-
