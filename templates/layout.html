@@ -25,93 +25,189 @@
     .notif-close { cursor: pointer; font-size: 18px; }
 
     /* Centered Alert Modal */
-.notification-modal {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  padding: 0;
-  pointer-events: none;   /* Prevent interaction when hidden */
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
+    .notification-modal {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      padding: 0;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
 
-.notification-modal.show {
-  pointer-events: auto;
-  opacity: 1;
-  transform: translateY(0);
-}
+    .notification-modal.show {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateY(0);
+    }
 
-/* Modal Box */
-.modal-content {
-  background: #d9e9f6;               /* Light blue like the sample */
-  width: 340px;
-  padding: 25px;
-  border-radius: 15px;
-  position: relative;
-  text-align: center;
-  box-shadow: 0px 6px 12px rgba(0,0,0,0.15);
-}
+    /* Modal Box */
+    .modal-content {
+      background: #d9e9f6;
+      width: 340px;
+      padding: 25px;
+      border-radius: 15px;
+      position: relative;
+      text-align: center;
+      box-shadow: 0px 6px 12px rgba(0,0,0,0.15);
+    }
 
-/* Close (X) */
-.modal-close {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  font-size: 20px;
-  cursor: pointer;
-  color: #042f50;
-}
+    /* Close (X) */
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #042f50;
+    }
 
-/* Red Warning Icon */
-.alert-icon {
-  font-size: 55px;
-  color: #e62e2e; /* Red */
-  margin-bottom: 10px;
-}
+    /* Red Warning Icon */
+    .alert-icon {
+      font-size: 55px;
+      color: #e62e2e;
+      margin-bottom: 10px;
+    }
 
-/* Title */
-.alert-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #042f50;
-  margin-bottom: 8px;
-}
+    /* Title */
+    .alert-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #042f50;
+      margin-bottom: 8px;
+    }
 
-/* Description text */
-.alert-text {
-  color: #042f50;
-  font-size: 15px;
-  margin-bottom: 20px;
-}
+    /* Description text */
+    .alert-text {
+      color: #042f50;
+      font-size: 15px;
+      margin-bottom: 20px;
+    }
 
-/* Buttons */
-.modal-buttons {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
+    /* Buttons */
+    .modal-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
 
-.btn-filled {
-  background: #042f50;
-  border: none;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  width: 100%;
-}
+    .btn-filled {
+      background: #042f50;
+      border: none;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+    }
 
-.btn-outline {
-  background: transparent;
-  border: 2px solid #042f50;
-  color: #042f50;
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  width: 100%;
-}
+    .btn-outline {
+      background: transparent;
+      border: 2px solid #042f50;
+      color: #042f50;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* ADD THIS: User Alert Modal (for success/error messages) */
+    .user-alert-modal {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      background: white;
+      width: 320px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      padding: 20px;
+      display: none;
+      align-items: center;
+      gap: 15px;
+      border-left: 5px solid #3498db;
+      animation: slideIn 0.3s ease;
+    }
+
+    .user-alert-modal.show {
+      display: flex;
+    }
+
+    .user-alert-modal.success {
+      border-left-color: #2ecc71;
+      background: #f0fdf4;
+    }
+
+    .user-alert-modal.error {
+      border-left-color: #e74c3c;
+      background: #fef2f2;
+    }
+
+    .user-alert-modal.warning {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .user-alert-modal.info {
+      border-left-color: #3498db;
+      background: #eff6ff;
+    }
+
+    .user-alert-icon {
+      font-size: 24px;
+      min-width: 24px;
+    }
+
+    .success .user-alert-icon { color: #2ecc71; }
+    .error .user-alert-icon { color: #e74c3c; }
+    .warning .user-alert-icon { color: #f59e0b; }
+    .info .user-alert-icon { color: #3498db; }
+
+    .user-alert-content {
+      flex: 1;
+    }
+
+    .user-alert-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #1f2937;
+    }
+
+    .user-alert-message {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .user-alert-close {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-alert-close:hover {
+      color: #374151;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 
@@ -134,9 +230,23 @@
     {% block content %}{% endblock %}
   </main>
 
-  <!-- New Styled Notification Popup -->
-<div id="notification-popup" class="notification-modal hidden">
-  <div class="modal-content">
+  <!-- 1. User Alert Modal (for success/error messages - replaces alert()) -->
+  <div id="user-alert-popup" class="user-alert-modal">
+    <div class="user-alert-icon">
+      <i id="user-alert-icon" class="fa-solid"></i>
+    </div>
+    <div class="user-alert-content">
+      <div id="user-alert-title" class="user-alert-title"></div>
+      <div id="user-alert-message" class="user-alert-message"></div>
+    </div>
+    <button id="user-alert-close-btn" class="user-alert-close">
+      <i class="fa-solid fa-times"></i>
+    </button>
+  </div>
+
+  <!-- 2. Existing Notification Modal (for automated alerts) -->
+  <div id="notification-popup" class="notification-modal hidden">
+    <div class="modal-content">
       <span id="close-notif-btn" class="modal-close">&times;</span>
 
       <div class="alert-icon">
@@ -150,114 +260,149 @@
         <button id="ignore-notif-btn" class="btn-outline">Ignore Notification</button>
         <button id="notify-again-btn" class="btn-filled">Notify Me Again</button>
       </div>
+    </div>
   </div>
-</div>
 
+  <!-- UNIVERSAL JS FUNCTION FOR USER ALERTS -->
+  <script>
+  // Universal function to show user alerts (success/error/warning/info)
+  // Use this to replace ALL alert() calls in your application
+  function showPopup({ title, message, type = 'info', duration = 5000 }) {
+    const popup = document.getElementById('user-alert-popup');
+    const titleEl = document.getElementById('user-alert-title');
+    const messageEl = document.getElementById('user-alert-message');
+    const iconEl = document.getElementById('user-alert-icon');
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const popup = document.getElementById('notification-popup');
-  const messageEl = document.getElementById('notification-message');
-  const closeBtn = document.getElementById('close-notif-btn');
-  const notifyAgainBtn = document.getElementById('notify-again-btn');
-  const ignoreBtn = document.getElementById('ignore-notif-btn');
+    // Set content
+    titleEl.textContent = title;
+    messageEl.textContent = message;
 
-  let queue = [];
-  let showing = false;
-  let current = null;
+    // Set icon and style based on type
+    const icons = {
+      success: 'fa-circle-check',
+      error: 'fa-circle-xmark',
+      warning: 'fa-triangle-exclamation',
+      info: 'fa-circle-info'
+    };
 
-  function show(notif) {
-  if (showing) return;
+    iconEl.className = `fa-solid ${icons[type] || icons.info}`;
+    
+    // Update modal class for styling
+    popup.className = 'user-alert-modal show';
+    popup.classList.add(type);
 
-  current = notif;
-  showing = true;
-
-  messageEl.textContent = notif.message;
-  document.getElementById('notification-title').textContent = getAlertTitle(notif.type); // ✅ set title dynamically
-  popup.classList.add('show');
-
-  // mark as “last shown” for interval check
-  localStorage.setItem(`notif_${notif.id}`, Date.now());
-
-  // update server last_notified timestamp
-  fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
-}
-
-
-  function hide() {
-    popup.classList.remove('show');
-    showing = false;
-    current = null;
-
-    setTimeout(showNext, 400);
+    // Auto-hide after duration
+    setTimeout(() => {
+      popup.classList.remove('show');
+    }, duration);
   }
 
-  function showNext() {
-    if (showing || queue.length === 0) return;
-    show(queue.shift());
-  }
+  // Close button handler for user alerts
+  document.getElementById('user-alert-close-btn').onclick = () => {
+    document.getElementById('user-alert-popup').classList.remove('show');
+  };
+  </script>
 
-  async function fetchNotifications() {
-  const INTERVAL = 30 * 1000; // 30 seconds
-  const res = await fetch('{{ url_for("notification_json") }}');
-  const data = await res.json();
+  <!-- EXISTING NOTIFICATION SYSTEM JS -->
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const popup = document.getElementById('notification-popup');
+    const messageEl = document.getElementById('notification-message');
+    const closeBtn = document.getElementById('close-notif-btn');
+    const notifyAgainBtn = document.getElementById('notify-again-btn');
+    const ignoreBtn = document.getElementById('ignore-notif-btn');
 
-  queue = data.filter(n => {
-    if (n.ignored) return false;
+    let queue = [];
+    let showing = false;
+    let current = null;
 
-    const lastShown = localStorage.getItem(`notif_${n.id}`);
-    return !lastShown || (Date.now() - lastShown) >= INTERVAL;
+    function show(notif) {
+      if (showing) return;
+
+      current = notif;
+      showing = true;
+
+      messageEl.textContent = notif.message;
+      document.getElementById('notification-title').textContent = getAlertTitle(notif.type);
+      popup.classList.add('show');
+
+      // mark as "last shown" for interval check
+      localStorage.setItem(`notif_${notif.id}`, Date.now());
+
+      // update server last_notified timestamp
+      fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
+    }
+
+    function hide() {
+      popup.classList.remove('show');
+      showing = false;
+      current = null;
+
+      setTimeout(showNext, 400);
+    }
+
+    function showNext() {
+      if (showing || queue.length === 0) return;
+      show(queue.shift());
+    }
+
+    async function fetchNotifications() {
+      const INTERVAL = 30 * 1000; // 30 seconds
+      const res = await fetch('{{ url_for("notification_json") }}');
+      const data = await res.json();
+
+      queue = data.filter(n => {
+        if (n.ignored) return false;
+
+        const lastShown = localStorage.getItem(`notif_${n.id}`);
+        return !lastShown || (Date.now() - lastShown) >= INTERVAL;
+      });
+
+      showNext();
+    }
+
+    function getAlertTitle(type) {
+      switch (type) {
+        case 'low-stock':
+          return 'Low Stock Alert!';
+        case 'out-of-stock':
+          return 'Out of Stock Alert!';
+        case 'near-expiry':
+          return 'Near Expiry Alert!';
+        case 'expired':
+          return 'Expired Product Alert!';
+        default:
+          return 'Notification';
+      }
+    }
+
+    async function markAsRead(id) {
+      await fetch(`/read-notification/${id}`, { method: 'POST' });
+    }
+
+    closeBtn.onclick = () => {
+      if (current) markAsRead(current.id);
+      hide();
+    };
+
+    notifyAgainBtn.onclick = () => {
+      if (current) markAsRead(current.id);
+      hide();
+    };
+
+    ignoreBtn.onclick = async () => {
+      if (!current) return;
+
+      await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
+      await markAsRead(current.id);
+
+      hide();
+    };
+
+    fetchNotifications();
+    setInterval(fetchNotifications, 30000);
   });
-
-  showNext();
-}
-
-function getAlertTitle(type) {
-  switch (type) {
-    case 'low-stock':
-      return 'Low Stock Alert!';
-    case 'out-of-stock':
-      return 'Out of Stock Alert!';
-    case 'near-expiry':
-      return 'Near Expiry Alert!';
-    case 'expired':
-      return 'Expired Product Alert!';
-    default:
-      return 'Notification';
-  }
-}
-
-
-
-  async function markAsRead(id) {
-  await fetch(`/read-notification/${id}`, { method: 'POST' });
-  }
-
-
-  closeBtn.onclick = () => {
-  if (current) markAsRead(current.id);
-  hide();
-  };
-
-  notifyAgainBtn.onclick = () => {
-  if (current) markAsRead(current.id);
-  hide();
-  };
-
-  ignoreBtn.onclick = async () => {
-  if (!current) return;
-
-  await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
-  await markAsRead(current.id);
-
-  hide();
-  };
-
-
-  fetchNotifications();
-  setInterval(fetchNotifications, 30000);
-});
-</script>
+  </script>
 
 </body>
 </html>
