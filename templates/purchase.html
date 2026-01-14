@@ -326,32 +326,31 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   });
 });
 
+function searchPurchasesTable() {
+  const input = document.getElementById("searchInput").value.toLowerCase();
+  const rows = document.querySelectorAll("#purchasesTable tbody tr");
 
-  function searchPurchasesTable() {
-    const input = document.getElementById("searchInput").value.toLowerCase();
-    const rows = document.querySelectorAll("#purchasesTable tbody tr");
+  rows.forEach(row => {
+    const rowText = row.textContent.toLowerCase();
+    row.style.display = rowText.includes(input) ? "" : "none";
+  });
+}
 
-    rows.forEach(row => {
-      const rowText = row.textContent.toLowerCase();
-      row.style.display = rowText.includes(input) ? "" : "none";
-    });
-  }
+function togglePurchaseFilters() {
+  const filterOptions = document.getElementById("purchaseFilterOptions");
+  filterOptions.style.display = filterOptions.style.display === "none" ? "block" : "none";
+}
 
-  function togglePurchaseFilters() {
-    const filterOptions = document.getElementById("purchaseFilterOptions");
-    filterOptions.style.display = filterOptions.style.display === "none" ? "block" : "none";
-  }
-
-  function applyPurchaseFilters() {
+function applyPurchaseFilters() {
   const batchVal = document.getElementById("batchFilter").value.toLowerCase();
   const statusVal = document.getElementById("statusFilter").value.toLowerCase();
   const dateVal = document.getElementById("dateFilter").value;
   const rows = document.querySelectorAll("#purchasesTable tbody tr");
 
   rows.forEach(row => {
-    const batch = row.cells[5].textContent.toLowerCase(); // Batch is now index 5 (was 4)
-    const status = row.cells[10].textContent.toLowerCase(); // Status is now index 10 (was 7)
-    const date = row.cells[1].textContent; // Date remains index 1
+    const batch = row.cells[5].textContent.toLowerCase();
+    const status = row.cells[10].textContent.toLowerCase();
+    const date = row.cells[1].textContent;
 
     const matchBatch = !batchVal || batch.includes(batchVal);
     const matchStatus = !statusVal || status === statusVal;
@@ -360,8 +359,8 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     row.style.display = matchBatch && matchStatus && matchDate ? "" : "none";
   });
 }
-  
-  function openPurchaseModal() {
+
+function openPurchaseModal() {
   document.getElementById("purchaseModal").style.display = "block";
   
   // Reset form if it's for adding new purchase
@@ -387,21 +386,21 @@ function closePurchaseModal() {
   // Reset form action to add-purchase for next time
   form.action = '/add-purchase';
 }
-  
+
 function editPurchase(id) {
   const row = document.querySelector(`#purchasesTable tbody tr[data-purchase-id='${id}']`);
 
-  const invoiceNumber = row.cells[0].textContent.trim(); // Invoice Number
-  const dateReceived = row.cells[1].textContent; // Date Received
-  const supplier = row.cells[2].textContent; // Supplier
-  const productText = row.cells[3].textContent; // Product Name
-  const dosage = row.cells[4].textContent; // Dosage
-  const batchNumber = row.cells[5].textContent; // Batch Number
-  const quantity = row.cells[6].textContent; // Quantity
-  const qtyPerBox = row.cells[7].textContent; // Qty per Box (NEW)
-  const unit = row.cells[8].textContent; // Unit (was 7)
-  const expiry = row.cells[9].textContent; // Expiration Date (was 8)
-  const status = row.cells[10].textContent; // Status (was 9)
+  const invoiceNumber = row.cells[0].textContent.trim();
+  const dateReceived = row.cells[1].textContent;
+  const supplier = row.cells[2].textContent;
+  const productText = row.cells[3].textContent;
+  const dosage = row.cells[4].textContent;
+  const batchNumber = row.cells[5].textContent;
+  const quantity = row.cells[6].textContent;
+  const qtyPerBox = row.cells[7].textContent;
+  const unit = row.cells[8].textContent;
+  const expiry = row.cells[9].textContent;
+  const status = row.cells[10].textContent;
   const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
@@ -412,8 +411,6 @@ function editPurchase(id) {
 
   // Populate form fields
   form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
-  
-  // Set product search field
   document.getElementById('productSearch').value = productText;
   document.getElementById('quantityPerBox').value = quantityPerBox;
   
@@ -421,15 +418,12 @@ function editPurchase(id) {
   const productSearchValue = productText;
   let productId = '';
   
-  // Try to find exact match first
   if (productDataMap[productSearchValue]) {
     productId = productDataMap[productSearchValue].id;
   } else {
-    // Try partial match
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
-        // Update the display to show full product name
         document.getElementById('productSearch').value = key;
         break;
       }
@@ -437,13 +431,11 @@ function editPurchase(id) {
   }
   
   document.getElementById('productIdInput').value = productId;
-  
   form.purchase_quantity.value = quantity;
   form.expiration_date.value = expiry;
   
   // Set supplier dropdown
   const supplierSelect = form.supplier;
-  // Try to find the supplier in the options
   let found = false;
   for (let option of supplierSelect.options) {
     if (option.textContent === supplier) {
@@ -452,7 +444,6 @@ function editPurchase(id) {
       break;
     }
   }
-  // If supplier not found, select the first option (empty)
   if (!found) {
     supplierSelect.selectedIndex = 0;
   }
@@ -460,38 +451,27 @@ function editPurchase(id) {
   openPurchaseModal();
 }
 
-  
 function updatePurchaseProductInfo() {
   const productSearch = document.getElementById('productSearch');
   const productIdInput = document.getElementById('productIdInput');
   const searchValue = productSearch.value.trim();
   
-  // Clear previous product ID
   productIdInput.value = '';
-  
-  // Remove invalid class if present
   productSearch.classList.remove('product-invalid');
   
-  if (!searchValue) {
-    return;
-  }
+  if (!searchValue) return;
   
-  // Check if the product exists in our map
   if (productDataMap[searchValue]) {
-    // Exact match found
     productIdInput.value = productDataMap[searchValue].id;
   } else {
-    // Try to find a matching product
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.toLowerCase().includes(searchValue.toLowerCase())) {
-        // Found a match - set the full product name and ID
         productSearch.value = key;
         productIdInput.value = value.id;
         break;
       }
     }
     
-    // If still no match after trying partials, mark as invalid
     if (!productIdInput.value) {
       productSearch.classList.add('product-invalid');
     }
@@ -544,14 +524,14 @@ function deletePurchase(id) {
 }
 
 function toggleOtherSupplier() {
-    const supplierSelect = document.getElementById('supplierSelect');
-    const otherGroup = document.getElementById('otherSupplierGroup');
-    
-    if (supplierSelect.value === '__other__') {
-        otherGroup.style.display = 'block';
-    } else {
-        otherGroup.style.display = 'none';
-    }
+  const supplierSelect = document.getElementById('supplierSelect');
+  const otherGroup = document.getElementById('otherSupplierGroup');
+  
+  if (supplierSelect.value === '__other__') {
+    otherGroup.style.display = 'block';
+  } else {
+    otherGroup.style.display = 'none';
+  }
 }
 
 // Add keyboard navigation for product search
@@ -559,83 +539,81 @@ document.addEventListener('DOMContentLoaded', function() {
   const productSearch = document.getElementById('productSearch');
   if (productSearch) {
     productSearch.addEventListener('keydown', function(e) {
-      // If user presses Enter in the product field, prevent form submission
       if (e.key === 'Enter') {
         e.preventDefault();
         updatePurchaseProductInfo();
       }
     });
     
-    // Also update when user selects from dropdown
     productSearch.addEventListener('change', updatePurchaseProductInfo);
   }
 });
 
-  let currentSort = {
-    column: 'id',
-    direction: 'asc'
-  };
+let currentSort = {
+  column: 'id',
+  direction: 'asc'
+};
 
-  function sortTable() {
-    const table = document.getElementById('purchasesTable');
-    const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+function sortTable() {
+  const table = document.getElementById('purchasesTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  rows.sort((a, b) => {
+    let aValue = a.children[getColumnIndex(currentSort.column)].textContent;
+    let bValue = b.children[getColumnIndex(currentSort.column)].textContent;
     
-    rows.sort((a, b) => {
-      let aValue = a.children[getColumnIndex(currentSort.column)].textContent;
-      let bValue = b.children[getColumnIndex(currentSort.column)].textContent;
-      
-      if (currentSort.column === 'id' || currentSort.column === 'quantity' || currentSort.column === 'remaining') {
-        aValue = parseFloat(aValue.replace(/[^0-9.-]+/g, ''));
-        bValue = parseFloat(bValue.replace(/[^0-9.-]+/g, ''));
-      }
-      
-      if (currentSort.column === 'date' || currentSort.column === 'expiration') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      }
-      
-      if (currentSort.direction === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
+    if (currentSort.column === 'id' || currentSort.column === 'quantity' || currentSort.column === 'remaining') {
+      aValue = parseFloat(aValue.replace(/[^0-9.-]+/g, ''));
+      bValue = parseFloat(bValue.replace(/[^0-9.-]+/g, ''));
+    }
     
-    rows.forEach(row => tbody.appendChild(row));
-  }
-
-  sortTable();
-
-  document.querySelectorAll('.sort-btn').forEach(button => {
-    button.addEventListener('click', () => {
-      const column = button.dataset.sort;
-      
-      if (currentSort.column === column) {
-        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-      } else {
-        currentSort.column = column;
-        currentSort.direction = 'asc';
-      }
-      
-      sortTable();
-    });
+    if (currentSort.column === 'date' || currentSort.column === 'expiration') {
+      aValue = new Date(aValue);
+      bValue = new Date(bValue);
+    }
+    
+    if (currentSort.direction === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
   });
+  
+  rows.forEach(row => tbody.appendChild(row));
+}
 
-  function getColumnIndex(column) {
-    const columnMap = {
-      'id': 0,
-      'name': 1,
-      'batch': 2,
-      'quantity': 3,
-      'remaining': 4,
-      'expiration': 5,
-      'status': 6,
-      'date': 7,
-      'supplier': 8
-    };
-    return columnMap[column];
-  }
+sortTable();
+
+document.querySelectorAll('.sort-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    const column = button.dataset.sort;
+    
+    if (currentSort.column === column) {
+      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.column = column;
+      currentSort.direction = 'asc';
+    }
+    
+    sortTable();
+  });
+});
+
+function getColumnIndex(column) {
+  const columnMap = {
+    'id': 0,
+    'name': 1,
+    'batch': 2,
+    'quantity': 3,
+    'remaining': 4,
+    'expiration': 5,
+    'status': 6,
+    'date': 7,
+    'supplier': 8
+  };
+  return columnMap[column];
+}
 </script>
 
 {% endblock %}
