@@ -754,7 +754,9 @@ function setupFormHandlers() {
         });
         
         if(data.success) {
-          location.reload();
+          setTimeout(() => {
+            location.reload();
+          }, 1500);
         } else {
           submitButton.textContent = originalText;
           submitButton.disabled = false;
@@ -909,7 +911,9 @@ function setupFormHandlers() {
         });
         
         if(data.success) {
-          location.reload();
+          setTimeout(() => {
+            location.reload();
+          }, 1500);
         } else {
           submitButton.textContent = originalText;
           submitButton.disabled = false;
@@ -981,6 +985,29 @@ function setupFormHandlers() {
 
 // Delete order
 function deleteOrder(orderId) {
+  confirmAction('Are you sure you want to delete this order?', () => {
+    fetch(`/delete-order/${orderId}`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        showPopup({
+          title: data.success ? 'Success' : 'Error',
+          message: data.message,
+          type: data.success ? 'success' : 'error'
+        });
+        if(data.success) {
+          setTimeout(() => {
+            location.reload();
+          }, 1500);
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        showPopup({
+          title: 'Error',
+          message: 'Error deleting order: ' + err.message,
+          type: 'error'
+        });
+      });
   showPopup({
     title: 'Confirm Delete',
     message: 'Are you sure you want to delete this order?',
