@@ -70,7 +70,7 @@
               <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
               <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
               <td>
-                <button onclick="event.stopPropagation(); openEditOrderModal({{ order[0] }}, '{{ order[1] }}', '{{ order[6] }}', {{ order[2] }}, '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}', {{ order[9] if order[9] else 1 }})">Edit</button>
+                <button onclick="editOrderRow({{ order[0] }})">Edit</button>
                 <button onclick="event.stopPropagation(); deleteOrder('{{ order[0] }}')">Delete</button>
               </td>
             </tr>
@@ -257,6 +257,21 @@ let currentProductsForEdit = [];
 document.addEventListener('DOMContentLoaded', function() {
   console.log("DOM Content Loaded - Initializing...");
   
+  // Get all options from the datalist
+  const datalist = document.getElementById('invoiceNumbersList');
+  const options = datalist ? datalist.querySelectorAll('option') : [];
+  
+  // Populate the invoice data map
+  options.forEach(option => {
+    invoiceDataMap[option.value] = {
+      product: option.getAttribute('data-product'),
+      dosage: option.getAttribute('data-dosage'),
+      unit: option.getAttribute('data-unit')
+    };
+  });
+  
+  console.log('Invoice data map loaded:', invoiceDataMap);
+  
   // Make rows expandable when clicked (except action cells)
   const table = document.getElementById('ordersTable');
   const tbody = table ? table.getElementsByTagName('tbody')[0] : null;
@@ -277,21 +292,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Get all options from the datalist
-  const datalist = document.getElementById('invoiceNumbersList');
-  const options = datalist ? datalist.querySelectorAll('option') : [];
-  
-  // Populate the invoice data map
-  options.forEach(option => {
-    invoiceDataMap[option.value] = {
-      product: option.getAttribute('data-product'),
-      dosage: option.getAttribute('data-dosage'),
-      unit: option.getAttribute('data-unit')
-    };
-  });
-  
-  console.log('Invoice data map loaded:', invoiceDataMap);
-  
   // Set up form submissions and other event listeners
   setupFormHandlers();
   
@@ -299,24 +299,28 @@ document.addEventListener('DOMContentLoaded', function() {
   setupFilterHandlers();
 });
 
-  document.addEventListener('DOMContentLoaded', function() {
-  // Make rows expandable when clicked (except action cells)
-  const table = document.getElementById('ordersTable');
-  const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-  
-  for (let row of rows) {
-    // Skip if this is the "no orders found" row
-    if (row.cells.length <= 1) continue;
-    
-    // Add click event to all cells except the last one (actions)
-    for (let i = 0; i < row.cells.length - 1; i++) {
-      row.cells[i].addEventListener('click', function() {
-        row.classList.toggle('expanded');
-      });
-    }
+// Add this new function to handle edit button clicks
+function editOrderRow(orderId) {
+  const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+  if (!row) {
+    console.error('Row not found for order ID:', orderId);
+    return;
   }
-});
-
+  
+  const productName = row.cells[3].textContent;
+  const invoiceNumber = row.getAttribute('data-invoice');
+  const quantity = parseInt(row.getAttribute('data-quantity'));
+  const customer = row.getAttribute('data-customer');
+  const dosage = row.cells[4].textContent;
+  const unit = row.cells[7].textContent;
+  const quantityPerBox = parseInt(row.cells[6].textContent) || 1;
+  
+  console.log("Opening edit modal with data:", {
+    orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox
+  });
+  
+  openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox);
+}
 
 // Filter functions
 function toggleOrderFilterOptions() {
@@ -431,13 +435,13 @@ function closeAddOrderModal() {
   document.getElementById('addOrderForm').reset();
 }
 
-// Edit Order Modal functions
+// Edit Order Modal functions - Fixed function to properly handle all parameters
 function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox) {
   console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox});
   
   document.getElementById('editOrderId').value = orderId;
   const editInvoiceInput = document.getElementById('editInvoiceNumber');
-  editInvoiceInput.value = invoiceNumber;
+  editInvoiceInput.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
   
   // Store old values for calculation
   editInvoiceInput.setAttribute('data-old-invoice', invoiceNumber);
@@ -978,5 +982,3 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
-
-
