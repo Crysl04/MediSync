@@ -263,49 +263,9 @@
     </div>
   </div>
 
-  <!-- UNIVERSAL JS FUNCTION FOR USER ALERTS -->
-  <script>
-  // Universal function to show user alerts (success/error/warning/info)
-  // Use this to replace ALL alert() calls in your application
-  function showPopup({ title, message, type = 'info', duration = 5000 }) {
-    const popup = document.getElementById('user-alert-popup');
-    const titleEl = document.getElementById('user-alert-title');
-    const messageEl = document.getElementById('user-alert-message');
-    const iconEl = document.getElementById('user-alert-icon');
-
-    // Set content
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-
-    // Set icon and style based on type
-    const icons = {
-      success: 'fa-circle-check',
-      error: 'fa-circle-xmark',
-      warning: 'fa-triangle-exclamation',
-      info: 'fa-circle-info'
-    };
-
-    iconEl.className = `fa-solid ${icons[type] || icons.info}`;
-    
-    // Update modal class for styling
-    popup.className = 'user-alert-modal show';
-    popup.classList.add(type);
-
-    // Auto-hide after duration
-    setTimeout(() => {
-      popup.classList.remove('show');
-    }, duration);
-  }
-
-  // Close button handler for user alerts
-  document.getElementById('user-alert-close-btn').onclick = () => {
-    document.getElementById('user-alert-popup').classList.remove('show');
-  };
-  </script>
-
-  <!-- EXISTING NOTIFICATION SYSTEM JS -->
-  <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  <!-- EXISTING NOTIFICATION SYSTEM JS - UPDATED -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
     const popup = document.getElementById('notification-popup');
     const messageEl = document.getElementById('notification-message');
     const closeBtn = document.getElementById('close-notif-btn');
@@ -317,96 +277,130 @@
     let current = null;
 
     function show(notif) {
-      if (showing) return;
+        if (showing) return;
 
-      current = notif;
-      showing = true;
+        current = notif;
+        showing = true;
 
-      messageEl.textContent = notif.message;
-      document.getElementById('notification-title').textContent = getAlertTitle(notif.type);
-      popup.classList.add('show');
+        // Remove hidden class to ensure it's visible
+        popup.classList.remove('hidden');
+        
+        messageEl.textContent = notif.message;
+        document.getElementById('notification-title').textContent = getAlertTitle(notif.type);
+        
+        // Use setTimeout to ensure the display is set before adding show class
+        setTimeout(() => {
+            popup.classList.add('show');
+        }, 10);
 
-      // mark as "last shown" for interval check
-      localStorage.setItem(`notif_${notif.id}`, Date.now());
+        // mark as "last shown" for interval check
+        localStorage.setItem(`notif_${notif.id}`, Date.now());
 
-      // update server last_notified timestamp
-      fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
+        // update server last_notified timestamp
+        fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
     }
 
     function hide() {
-      popup.classList.remove('show');
-      showing = false;
-      current = null;
+        // Remove the show class to trigger the fade-out animation
+        popup.classList.remove('show');
+        showing = false;
+        current = null;
 
-      setTimeout(showNext, 400);
+        // Wait for the fade-out animation to complete, then add hidden class
+        setTimeout(() => {
+            popup.classList.add('hidden');
+            showNext();
+        }, 400); // Match this with your CSS transition duration (0.4s)
     }
 
     function showNext() {
-      if (showing || queue.length === 0) return;
-      show(queue.shift());
+        if (showing || queue.length === 0) return;
+        show(queue.shift());
     }
 
     async function fetchNotifications() {
-      const INTERVAL = 30 * 1000; // 30 seconds
-      const res = await fetch('{{ url_for("notification_json") }}');
-      const data = await res.json();
+        const INTERVAL = 30 * 1000; // 30 seconds
+        const res = await fetch('{{ url_for("notification_json") }}');
+        const data = await res.json();
 
-      queue = data.filter(n => {
-        if (n.ignored) return false;
+        queue = data.filter(n => {
+            if (n.ignored) return false;
 
-        const lastShown = localStorage.getItem(`notif_${n.id}`);
-        return !lastShown || (Date.now() - lastShown) >= INTERVAL;
-      });
+            const lastShown = localStorage.getItem(`notif_${n.id}`);
+            return !lastShown || (Date.now() - lastShown) >= INTERVAL;
+        });
 
-      showNext();
+        showNext();
     }
 
     function getAlertTitle(type) {
-      switch (type) {
-        case 'low-stock':
-          return 'Low Stock Alert!';
-        case 'out-of-stock':
-          return 'Out of Stock Alert!';
-        case 'near-expiry':
-          return 'Near Expiry Alert!';
-        case 'expired':
-          return 'Expired Product Alert!';
-        default:
-          return 'Notification';
-      }
+        switch (type) {
+            case 'low-stock':
+                return 'Low Stock Alert!';
+            case 'out-of-stock':
+                return 'Out of Stock Alert!';
+            case 'near-expiry':
+                return 'Near Expiry Alert!';
+            case 'expired':
+                return 'Expired Product Alert!';
+            default:
+                return 'Notification';
+        }
     }
 
     async function markAsRead(id) {
-      await fetch(`/read-notification/${id}`, { method: 'POST' });
+        await fetch(`/read-notification/${id}`, { method: 'POST' });
+    }
+
+    // Add visual feedback for button clicks
+    function addButtonFeedback(button) {
+        button.classList.add('clicked');
+        setTimeout(() => {
+            button.classList.remove('clicked');
+        }, 200);
     }
 
     closeBtn.onclick = () => {
-      if (current) markAsRead(current.id);
-      hide();
+        addButtonFeedback(closeBtn);
+        if (current) markAsRead(current.id);
+        hide();
     };
 
     notifyAgainBtn.onclick = () => {
-      if (current) markAsRead(current.id);
-      hide();
+        addButtonFeedback(notifyAgainBtn);
+        if (current) markAsRead(current.id);
+        hide();
     };
 
-    ignoreBtn.onclick = () => {
-      if (!current) return;
-    
-      // hide immediately
-      hide();
-    
-      // asynchronously mark ignored
-      fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
-      markAsRead(current.id);
-    };
+    ignoreBtn.onclick = async () => {
+        // Add visual feedback
+        addButtonFeedback(ignoreBtn);
+        
+        if (!current) return;
 
+        // Optional: Show a brief loading state on the button
+        const originalText = ignoreBtn.textContent;
+        ignoreBtn.textContent = 'Ignoring...';
+        ignoreBtn.disabled = true;
+
+        try {
+            await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
+            await markAsRead(current.id);
+            
+            // Show success feedback
+            ignoreBtn.textContent = 'Ignored!';
+            setTimeout(() => {
+                hide();
+            }, 500);
+        } catch (error) {
+            // Reset button if error
+            ignoreBtn.textContent = originalText;
+            ignoreBtn.disabled = false;
+            console.error('Error ignoring notification:', error);
+        }
+    };
 
     fetchNotifications();
     setInterval(fetchNotifications, 30000);
-  });
-  </script>
-
-</body>
-</html>
-
+});
+</script>
