@@ -257,6 +257,26 @@ let currentProductsForEdit = [];
 document.addEventListener('DOMContentLoaded', function() {
   console.log("DOM Content Loaded - Initializing...");
   
+  // Make rows expandable when clicked (except action cells)
+  const table = document.getElementById('ordersTable');
+  const tbody = table ? table.getElementsByTagName('tbody')[0] : null;
+  
+  if (tbody) {
+    const rows = tbody.getElementsByTagName('tr');
+    
+    for (let row of rows) {
+      // Skip if this is the "no orders found" row
+      if (row.cells.length <= 1) continue;
+      
+      // Add click event to all cells except the last one (actions)
+      for (let i = 0; i < row.cells.length - 1; i++) {
+        row.cells[i].addEventListener('click', function() {
+          row.classList.toggle('expanded');
+        });
+      }
+    }
+  }
+  
   // Get all options from the datalist
   const datalist = document.getElementById('invoiceNumbersList');
   const options = datalist ? datalist.querySelectorAll('option') : [];
@@ -958,4 +978,5 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
