@@ -538,14 +538,13 @@ def add_product():
         conn.commit()
         log_activity(session['username'], f"Added product '{product_name}'")
 
-        flash('Product added successfully!', 'success')
-        return redirect(url_for('products'))
+        # Return JSON response instead of redirect
+        return jsonify({'success': True, 'message': 'Product added successfully!'})
         
     except Exception as e:
         if conn:
             conn.rollback()
-        flash(f'Error adding product: {str(e)}', 'error')
-        return redirect(url_for('products'))
+        return jsonify({'success': False, 'message': f'Error adding product: {str(e)}'})
     finally:
         if conn is not None:
             conn.close()
