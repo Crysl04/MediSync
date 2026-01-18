@@ -142,14 +142,6 @@
         <option value="supply">Supplies</option>
       </select><br><br>
       
-      <label>Category:</label><br>
-      <select name="category_id" required>
-        <option value="">Select Category</option>
-        {% for cat in categories %}
-          <option value="{{ cat[0] }}">{{ cat[1] }}</option>
-        {% endfor %}
-      </select><br><br>
-      
       <div style="text-align:right;">
         <button type="button" onclick="closeProductModal()">Cancel</button>
         <button type="submit" id="modalSubmit">Add</button>
@@ -382,3 +374,4 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
+
