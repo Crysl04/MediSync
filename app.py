@@ -526,16 +526,14 @@ def add_product():
         # Get form data with new fields
         product_name = request.form['product_name']
         product_type = request.form['product_type']
-        category_id = request.form['category_id']
         dosage = request.form.get('dosage', '')
         unit_id = request.form.get('unit_id')
         
-        # Insert new product with dosage and unit
         c.execute("""
             INSERT INTO Product (product_name, product_type, category_id, dosage, unit_id, stock_quantity)
             VALUES (%s, %s, %s, %s, %s, 0)
             RETURNING id
-        """, (product_name, product_type, category_id, dosage, unit_id))
+        """, (product_name, product_type, 13, dosage, unit_id)) 
         
         conn.commit()
         log_activity(session['username'], f"Added product '{product_name}'")
@@ -557,8 +555,7 @@ def add_product():
 def edit_product(product_id):
     product_name = request.form['product_name']
     product_type = request.form['product_type']
-    category_id = request.form['category_id']
-
+   
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
@@ -568,7 +565,7 @@ def edit_product(product_id):
             UPDATE Product
             SET product_name = %s, product_type = %s, category_id = %s
             WHERE id = %s
-        """, (product_name, product_type, category_id, product_id))
+        """, (product_name, product_type, 13, product_id))  
 
         conn.commit()
         log_activity(session['username'], f"Edited product ID {product_id}")
@@ -579,6 +576,10 @@ def edit_product(product_id):
         if conn:
             conn.rollback()
             return jsonify({'success': False, 'message': f'Error updating product: {str(e)}'})
+
+    finally:
+        if conn:
+            conn.close()
 
     finally:
         if conn:
