@@ -390,14 +390,17 @@
       hide();
     };
 
-    ignoreBtn.onclick = async () => {
+    ignoreBtn.onclick = () => {
       if (!current) return;
-
-      await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
-      await markAsRead(current.id);
-
+    
+      // hide immediately
       hide();
+    
+      // asynchronously mark ignored
+      fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
+      markAsRead(current.id);
     };
+
 
     fetchNotifications();
     setInterval(fetchNotifications, 30000);
@@ -406,3 +409,4 @@
 
 </body>
 </html>
+
