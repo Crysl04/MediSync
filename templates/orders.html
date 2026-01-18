@@ -70,8 +70,8 @@
               <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
               <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
               <td>
-                <button onclick="openEditOrderModal('{{ order[0] }}', '{{ order[1] }}', '{{ order[6] }}', '{{ order[2] }}', '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}', '{{ order[9] if order[9] else 1 }}')">Edit</button>
-                <button onclick="deleteOrder('{{ order[0] }}')">Delete</button>
+                <button onclick="event.stopPropagation(); openEditOrderModal({{ order[0] }}, '{{ order[1] }}', '{{ order[6] }}', {{ order[2] }}, '{{ order[5] }}', '{{ order[8] }}', '{{ order[7] }}', {{ order[9] if order[9] else 1 }})">Edit</button>
+                <button onclick="event.stopPropagation(); deleteOrder('{{ order[0] }}')">Delete</button>
               </td>
             </tr>
           {% endfor %}
@@ -85,7 +85,37 @@
   </div>
 </div>
 
+<!-- Add this CSS in the <style> section -->
 <style>
+  .orders-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .orders-table th, .orders-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  
+  .orders-table tr.expanded td {
+    white-space: normal;
+    overflow: visible;
+    max-width: none;
+  }
+  
+  /* Keep action buttons always visible */
+  .orders-table td:last-child {
+    white-space: nowrap;
+    max-width: none;
+    cursor: default;
+  }
+  
   td button {
     margin: 2px;
     padding: 4px 8px;
@@ -100,11 +130,6 @@
   td button:last-child {
     background-color: #f44336;
     color: white;
-  }
-  /* Style for datalist dropdown */
-  datalist {
-    max-height: 200px;
-    overflow-y: auto;
   }
 </style>
 
@@ -253,6 +278,25 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set up filter event listeners
   setupFilterHandlers();
 });
+
+  document.addEventListener('DOMContentLoaded', function() {
+  // Make rows expandable when clicked (except action cells)
+  const table = document.getElementById('ordersTable');
+  const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+  
+  for (let row of rows) {
+    // Skip if this is the "no orders found" row
+    if (row.cells.length <= 1) continue;
+    
+    // Add click event to all cells except the last one (actions)
+    for (let i = 0; i < row.cells.length - 1; i++) {
+      row.cells[i].addEventListener('click', function() {
+        row.classList.toggle('expanded');
+      });
+    }
+  }
+});
+
 
 // Filter functions
 function toggleOrderFilterOptions() {
@@ -914,3 +958,4 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
