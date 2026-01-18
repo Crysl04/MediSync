@@ -103,12 +103,11 @@ def update_expiry_status():
             WHERE expiration_date <= CURRENT_DATE
         """)
 
-        # Near expiry: expires within 7 days
         c.execute("""
             UPDATE Purchase
             SET status = 'near expiry'
             WHERE expiration_date > CURRENT_DATE
-              AND expiration_date <= CURRENT_DATE + INTERVAL '7 days'
+              AND expiration_date <= CURRENT_DATE + INTERVAL '180 days'
               AND status != 'expired'
         """)
 
@@ -116,7 +115,7 @@ def update_expiry_status():
         c.execute("""
             UPDATE Purchase
             SET status = 'in stock'
-            WHERE expiration_date > CURRENT_DATE + INTERVAL '7 days'
+            WHERE expiration_date > CURRENT_DATE + INTERVAL '180 days'
               AND status NOT IN ('expired', 'near expiry')
         """)
 
