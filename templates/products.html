@@ -1,4 +1,3 @@
-
 {% extends 'layout.html' %}
 {% block title %}MediSync - Products{% endblock %}
 
@@ -74,6 +73,7 @@
           <th><button class="sort-btn" data-sort="name">Item Name</button></th>
           <th>Dosage</th>
           <th><button class="sort-btn" data-sort="type">Type</button></th>
+          <th><button class="sort-btn" data-sort="category">Category</button></th>
           <th>Unit</th>
           <th><button class="sort-btn" data-sort="quantity">Stock Quantity</button></th>
           <th><button class="sort-btn" data-sort="status">Stock Status</button></th>
@@ -88,6 +88,7 @@
           <td>{{ product[1] }}</td>
           <td>{{ product[2] if product[2] else '' }}</td> <!-- Dosage -->
           <td>{{ product[3] }}</td> <!-- Type -->
+          <td>{{ product[4] }}</td> <!-- Category -->
           <td>{{ product[5] if product[5] else '' }}</td> <!-- Unit -->
           <td>{{ product[6] }}</td> <!-- Stock Quantity -->
           <td>
@@ -139,6 +140,14 @@
         <option value="">Select Type</option>
         <option value="medicine">Medicine</option>
         <option value="supply">Supplies</option>
+      </select><br><br>
+      
+      <label>Category:</label><br>
+      <select name="category_id" required>
+        <option value="">Select Category</option>
+        {% for cat in categories %}
+          <option value="{{ cat[0] }}">{{ cat[1] }}</option>
+        {% endfor %}
       </select><br><br>
       
       <div style="text-align:right;">
@@ -214,7 +223,7 @@
   const name = row.cells[1].textContent;
   const dosage = row.cells[2].textContent;
   const type = row.cells[3].textContent;
-  const categoryText = row.cells[4].textContent;
+  const categoryText = row.cells[4].textContent; // Category is at index 4, not 3
   const unitText = row.cells[5].textContent;
   
   // Find category option
@@ -373,4 +382,3 @@ function deleteProduct(id) {
 </script>
 
 {% endblock %}
-
