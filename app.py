@@ -1,3 +1,4 @@
+
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import psycopg2
@@ -15,9 +16,9 @@ def init_db():
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
+
         c = conn.cursor()
 
-        # Create users table
         c.execute("""CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
@@ -28,7 +29,6 @@ def init_db():
         )
         """)
 
-        # Create user_activity table
         c.execute('''CREATE TABLE IF NOT EXISTS user_activity (
             id SERIAL PRIMARY KEY,
             username TEXT NOT NULL,
@@ -36,90 +36,26 @@ def init_db():
             activity_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
 
-        # Create Category table
+
         c.execute('''CREATE TABLE IF NOT EXISTS Category (
             id SERIAL PRIMARY KEY,
             category_name TEXT NOT NULL,
             created_at DATE DEFAULT CURRENT_DATE
         )''')
         
-        # Create Unit table (MUST be before Product table)
-        c.execute('''CREATE TABLE IF NOT EXISTS Unit (
-            id SERIAL PRIMARY KEY,
-            unit_name TEXT NOT NULL UNIQUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''')
-        
-        # Create Product table
         c.execute('''CREATE TABLE IF NOT EXISTS Product (
             id SERIAL PRIMARY KEY,
             product_name TEXT NOT NULL,
             product_type TEXT NOT NULL,
             category_id INTEGER REFERENCES Category(id),
-            dosage TEXT,
-            unit_id INTEGER REFERENCES Unit(id),
             stock_quantity INTEGER NOT NULL DEFAULT 0,
             stock_status TEXT DEFAULT 'in stock',
             status TEXT DEFAULT 'active',
             created_at DATE DEFAULT CURRENT_DATE
         )''')
         
-        # Create Purchase table (fixed schema)
-        c.execute('''CREATE TABLE IF NOT EXISTS Purchase (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES Product(id),
-            batch_number INTEGER NOT NULL,
-            purchase_quantity INTEGER NOT NULL,
-            remaining_quantity INTEGER NOT NULL,
-            expiration_date DATE NOT NULL,
-            status TEXT DEFAULT 'active',
-            purchase_date DATE DEFAULT CURRENT_DATE,
-            supplier TEXT,
-            invoice_number TEXT,
-            quantity_per_box INTEGER DEFAULT 1,
-            dosage TEXT,
-            unit_name TEXT
-        )''')
-        
-        # Create Order table (fixed schema)
-        c.execute('''CREATE TABLE IF NOT EXISTS "Order" (
-            order_id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES Product(id),
-            product_name TEXT NOT NULL,
-            order_quantity INTEGER NOT NULL,
-            batch_number INTEGER NOT NULL,
-            order_date DATE DEFAULT CURRENT_DATE,
-            customer TEXT,
-            invoice_number TEXT,
-            quantity_per_box INTEGER DEFAULT 1,
-            dosage TEXT,
-            unit_name TEXT
-        )''')
-        
-        # Create notification table
-        c.execute('''CREATE TABLE IF NOT EXISTS notification (
-            id SERIAL PRIMARY KEY,
-            message TEXT NOT NULL,
-            type TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_read BOOLEAN DEFAULT FALSE,
-            ignored BOOLEAN DEFAULT FALSE,
-            last_notified TIMESTAMP,
-            product_id INTEGER,
-            batch_id INTEGER
-        )''')
-        
         conn.commit()
-        print("Database initialization complete.")
-        
-        # Insert default units if they don't exist
-        c.execute("""
-            INSERT INTO Unit (unit_name) 
-            VALUES ('Tablet'), ('Capsule'), ('Bottle'), ('Box'), ('Tube'), ('Piece')
-            ON CONFLICT (unit_name) DO NOTHING
-        """)
-        conn.commit()
-        
+        print("Database initialization schema check complete.")
     except Exception as e:
         print(f"Error initializing database: {str(e)}")
         if conn:
@@ -454,43 +390,36 @@ def purchases():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        
-        # Updated query with correct column names
         c.execute("""
         SELECT 
             pu.id, 
-            COALESCE(pr.product_name, 'Product Deleted') as product_name,
-            COALESCE(pu.dosage, '') as dosage,
+            pr.product_name, 
+            pu.dosage,
             pu.batch_number, 
             pu.purchase_quantity, 
-            COALESCE(pu.unit_name, '') as unit_name,
+            pu.unit_name,
             pu.remaining_quantity, 
             pu.expiration_date, 
             pu.status, 
             pu.purchase_date,
-            COALESCE(pu.supplier, '') as supplier,
-            COALESCE(pu.invoice_number, '') as invoice_number,
-            COALESCE(pu.quantity_per_box, 1) as quantity_per_box
+            pu.supplier,
+            pu.invoice_number
         FROM Purchase pu
         LEFT JOIN Product pr ON pu.product_id = pr.id
         ORDER BY pu.purchase_date DESC
-        """)
+    """)
         purchases = c.fetchall()
         
-        # Get products for dropdown
+        # Get products with dosage and unit for dropdown
         c.execute("""
-            SELECT p.id, 
-                   p.product_name, 
-                   COALESCE(p.dosage, '') as dosage,
-                   COALESCE(u.unit_name, '') as unit_name
+            SELECT p.id, p.product_name, p.dosage, u.unit_name
             FROM Product p
             LEFT JOIN Unit u ON p.unit_id = u.id
-            WHERE p.status = 'active'
             ORDER BY p.product_name ASC
         """)
         products = c.fetchall()
         
-        # Supplier list
+        # Your specific supplier list
         suppliers = [
             "Medicines", "Regimed Pharmaceutical", "Meedpharma Medical Supplies and Equipt.",
             "Bansan Pharma", "Greencore Pharma Corp.", "Federal Pharmaceutical Inc.",
@@ -500,10 +429,7 @@ def purchases():
         ]
         suppliers.sort()
         
-        return render_template('purchase.html', 
-                             purchases=purchases, 
-                             products=products, 
-                             suppliers=suppliers)
+        return render_template('purchase.html', purchases=purchases, products=products, suppliers=suppliers)
     except Exception as e:
         print(f"Error in purchases route: {str(e)}")
         flash(f'Error loading purchases: {str(e)}', 'error')
@@ -522,41 +448,27 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        
-        # Updated query with correct column names
+        # Now using stored unit_name, dosage, and quantity_per_box from Order table
         c.execute("""
-            SELECT o.order_id, 
-                   o.product_name, 
-                   o.order_quantity, 
-                   o.batch_number, 
-                   o.order_date, 
-                   COALESCE(o.customer, '') as customer, 
-                   COALESCE(o.invoice_number, '') as invoice_number,
-                   COALESCE(o.unit_name, '') as unit_name, 
-                   COALESCE(o.dosage, '') as dosage, 
-                   COALESCE(o.quantity_per_box, 1) as quantity_per_box
+            SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
+                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage, o.quantity_per_box
             FROM "Order" o
             ORDER BY o.order_date DESC
         """)
         orders = c.fetchall()
         
-        # Get invoice data
+        # Get invoice data from purchase table, not order table
         c.execute("""
-            SELECT DISTINCT 
-                COALESCE(pu.invoice_number, '') as invoice_number, 
-                COALESCE(pr.product_name, 'Product Deleted') as product_name,
-                COALESCE(pu.dosage, '') as dosage,
-                COALESCE(pu.unit_name, '') as unit_name
+            SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
             FROM purchase pu
-            LEFT JOIN product pr ON pu.product_id = pr.id
-            WHERE pu.remaining_quantity > 0 
-                AND pu.invoice_number IS NOT NULL 
-                AND pu.invoice_number != ''
+            JOIN product pr ON pu.product_id = pr.id
+            LEFT JOIN unit u ON pr.unit_id = u.id
+            WHERE pu.remaining_quantity > 0 AND pu.invoice_number IS NOT NULL
             ORDER BY pu.invoice_number ASC
         """)
         invoice_data = c.fetchall()
         
-        # Customer list
+        # Your specific customer list
         customers = [
             "LGU-Sibagat, ADS", "DOPMH, Patin-ay, ADS", "LGU-Patin-ay, ADS",
             "LGU-Esperanza, ADS", "LGU-Prosperidad, ADS", "LGU-Talacogon, ADS",
@@ -703,7 +615,6 @@ def add_purchase():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
 
-        # Get form data
         product_id = request.form['product_id']
         purchase_quantity = int(request.form['purchase_quantity'])
         quantity_per_box = int(request.form.get('quantity_per_box', 1))
@@ -711,11 +622,7 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
 
-        # Handle "Other" supplier
-        if supplier == '__other__':
-            supplier = request.form.get('other_supplier', '')
-
-        # Get product info
+        # Get product name, dosage, and unit_name from product table
         c.execute("""
             SELECT p.product_name, p.dosage, u.unit_name 
             FROM Product p
@@ -728,26 +635,19 @@ def add_purchase():
             return jsonify({'success': False, 'message': 'Product not found'})
             
         product_name, dosage, unit_name = result
-        dosage = dosage or ''
-        unit_name = unit_name or ''
+        dosage = dosage if dosage else ''
+        unit_name = unit_name if unit_name else ''
 
-        # Generate batch number (you can customize this logic)
-        c.execute("SELECT COALESCE(MAX(batch_number), 0) + 1 FROM Purchase")
-        batch_number = c.fetchone()[0]
-
-        # Insert purchase
         c.execute("""
             INSERT INTO Purchase 
-            (product_id, batch_number, purchase_quantity, remaining_quantity, 
-             expiration_date, supplier, invoice_number, quantity_per_box, 
-             dosage, unit_name)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (product_id, batch_number, purchase_quantity, purchase_quantity, 
-              expiration_date, supplier, invoice_number, quantity_per_box,
-              dosage, unit_name))
+            (product_id, purchase_quantity, remaining_quantity, expiration_date, 
+             supplier, invoice_number, unit_name, dosage, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
+              supplier, invoice_number, unit_name, dosage, quantity_per_box))
 
         conn.commit()
-        log_activity(session['username'], f"Added purchase: {product_name}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
