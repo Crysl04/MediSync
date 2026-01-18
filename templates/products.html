@@ -89,8 +89,8 @@
             {% endif %}
           </td>
           <td>
-            <button onclick="editProduct('{{ product[0] }}')">Edit</button>
-            <button onclick="deleteProduct('{{ product[0] }}')">Delete</button>
+            <button onclick="editProduct({{ product[0] }})">Edit</button>
+            <button onclick="deleteProduct({{ product[0] }})">Delete</button>
           </td>
         </tr>
         {% endfor %}
@@ -108,17 +108,18 @@
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
     <h2 id="modalTitle">Add Product</h2>
     <!-- Fixed form - no category field, hardcoded category_id=13 -->
-    <form id="productForm" method="POST" action="/add-product">
+    <form id="productForm">
       <input type="hidden" name="category_id" value="13">
+      <input type="hidden" name="product_id" id="productId">
       
       <label>Product Name:</label><br>
-      <input type="text" name="product_name" required><br><br>
+      <input type="text" name="product_name" id="productName" required><br><br>
       
       <label>Dosage:</label><br>
-      <input type="text" name="dosage" placeholder="e.g., 500mg"><br><br>
+      <input type="text" name="dosage" id="dosage" placeholder="e.g., 500mg"><br><br>
       
       <label>Unit:</label><br>
-      <select name="unit_id" required>
+      <select name="unit_id" id="unitId" required>
         <option value="">Select Unit</option>
         {% for unit in units %}
           <option value="{{ unit[0] }}">{{ unit[1] }}</option>
@@ -126,7 +127,7 @@
       </select><br><br>
       
       <label>Product Type:</label><br>
-      <select name="product_type" required>
+      <select name="product_type" id="productType" required>
         <option value="">Select Type</option>
         <option value="medicine">Medicine</option>
         <option value="supply">Supplies</option>
@@ -134,7 +135,7 @@
       
       <div style="text-align:right;">
         <button type="button" onclick="closeProductModal()">Cancel</button>
-        <button type="submit" id="modalSubmit">Add</button>
+        <button type="button" id="modalSubmit" onclick="saveProduct()">Add</button>
       </div>
     </form>
   </div>
@@ -179,7 +180,12 @@
   }
 
   function editProduct(id) {
-    const row = [...document.querySelectorAll('#productsTable tbody tr')].find(r => r.cells[0].textContent == id);
+    const row = [...document.querySelectorAll('#productsTable tbody tr')].find(r => parseInt(r.cells[0].textContent) == id);
+    
+    if (!row) {
+      console.error('Row not found for product ID:', id);
+      return;
+    }
     
     // Correct indices based on your table structure (category column removed)
     const name = row.cells[1].textContent;
@@ -189,28 +195,21 @@
     
     document.getElementById('modalTitle').textContent = 'Edit Product';
     document.getElementById('modalSubmit').textContent = 'Update';
-    const form = document.getElementById('productForm');
-    form.action = '/edit-product/' + id;
+    document.getElementById('productId').value = id;
 
-    form.product_name.value = name;
-    form.dosage.value = dosage || '';
-    form.product_type.value = type;
+    document.getElementById('productName').value = name;
+    document.getElementById('dosage').value = dosage || '';
+    document.getElementById('productType').value = type;
     
     // Set unit_id
-    if (form.unit_id) {
-      const unitOption = [...document.querySelectorAll('select[name="unit_id"] option')]
-                        .find(opt => opt.textContent == unitText);
-      form.unit_id.value = unitOption ? unitOption.value : '';
-    }
-
-    form.onsubmit = function(e) {
-      e.preventDefault();
-      fetch(form.action, { method: 'POST', body: new FormData(form) })
-        .then(res => res.json())
-        .then(data => {
-          alert(data.message);
-          if(data.success) location.reload();
-        });
+    const unitSelect = document.getElementById('unitId');
+    if (unitSelect) {
+      const unitOption = [...unitSelect.options].find(opt => opt.textContent == unitText);
+      if (unitOption) {
+        unitSelect.value = unitOption.value;
+      } else {
+        unitSelect.value = '';
+      }
     }
 
     openProductModal();
@@ -224,29 +223,73 @@
           alert(data.message);
           if(data.success) location.reload();
         })
-        .catch(err => alert('Error deleting product: ' + err));
+        .catch(err => {
+          console.error('Error:', err);
+          alert('Error deleting product: ' + err);
+        });
     }
   }
 
   function openProductModal() {
     // Reset form for adding new product
-    const form = document.getElementById('productForm');
-    if (form.action.includes('/add-product')) {
-      form.reset();
-      form.unit_id.value = '';
-      form.product_type.value = '';
-      document.getElementById('modalTitle').textContent = 'Add Product';
-      document.getElementById('modalSubmit').textContent = 'Add';
-    }
+    document.getElementById('productId').value = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('unitId').value = '';
+    document.getElementById('productType').value = '';
+    document.getElementById('modalTitle').textContent = 'Add Product';
+    document.getElementById('modalSubmit').textContent = 'Add';
+    document.getElementById('modalSubmit').onclick = saveProduct;
+    
     document.getElementById('productModal').style.display = 'block';
   }
 
   function closeProductModal() {
     document.getElementById('productModal').style.display = 'none';
-    // Reset form to add-product for next time
+  }
+
+  function saveProduct() {
+    const productId = document.getElementById('productId').value;
     const form = document.getElementById('productForm');
-    form.action = '/add-product';
-    form.onsubmit = null; // Remove any custom submit handler
+    const formData = new FormData(form);
+    
+    const url = productId ? `/edit-product/${productId}` : '/add-product';
+    const method = 'POST';
+    
+    // Disable submit button to prevent double submission
+    const submitButton = document.getElementById('modalSubmit');
+    const originalText = submitButton.textContent;
+    submitButton.textContent = 'Processing...';
+    submitButton.disabled = true;
+    
+    fetch(url, {
+      method: method,
+      body: formData
+    })
+    .then(response => {
+      if (response.redirected) {
+        // For add-product which redirects
+        window.location.href = response.url;
+      } else {
+        return response.json();
+      }
+    })
+    .then(data => {
+      if (data) {
+        alert(data.message);
+        if(data.success) {
+          location.reload();
+        } else {
+          submitButton.textContent = originalText;
+          submitButton.disabled = false;
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error saving product');
+      submitButton.textContent = originalText;
+      submitButton.disabled = false;
+    });
   }
 
   function toggleFilterOptions() {
