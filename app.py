@@ -581,10 +581,6 @@ def edit_product(product_id):
         if conn:
             conn.close()
 
-    finally:
-        if conn:
-            conn.close()
-
 
 @app.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required
