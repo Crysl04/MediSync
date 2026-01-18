@@ -526,14 +526,13 @@ def add_product():
         # Get form data with new fields
         product_name = request.form['product_name']
         product_type = request.form['product_type']
-        category_id = request.form['category_id']
         dosage = request.form.get('dosage', '')
         unit_id = request.form.get('unit_id')
         
         # Insert new product with dosage and unit
         c.execute("""
             INSERT INTO Product (product_name, product_type, category_id, dosage, unit_id, stock_quantity)
-            VALUES (%s, %s, %s, %s, %s, 0)
+            VALUES (%s, %s, 13, %s, %s, 0)
             RETURNING id
         """, (product_name, product_type, category_id, dosage, unit_id))
         
@@ -557,7 +556,6 @@ def add_product():
 def edit_product(product_id):
     product_name = request.form['product_name']
     product_type = request.form['product_type']
-    category_id = request.form['category_id']
 
     conn = None
     try:
@@ -566,7 +564,7 @@ def edit_product(product_id):
         c = conn.cursor()
         c.execute("""
             UPDATE Product
-            SET product_name = %s, product_type = %s, category_id = %s
+            SET product_name = %s, product_type = %s, category_id = 13
             WHERE id = %s
         """, (product_name, product_type, category_id, product_id))
 
