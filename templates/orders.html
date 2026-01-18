@@ -88,6 +88,30 @@
 <!-- Add this CSS in the <style> section -->
 <style>
   
+  .orders-table th, .orders-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  
+  .orders-table tr.expanded td {
+    white-space: normal;
+    overflow: visible;
+    max-width: none;
+  }
+  
+  /* Keep action buttons always visible */
+  .orders-table td:last-child {
+    white-space: nowrap;
+    max-width: none;
+    cursor: default;
+  }
+  
   td button {
     margin: 2px;
     padding: 4px 8px;
@@ -954,4 +978,5 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
