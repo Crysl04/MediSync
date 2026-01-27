@@ -60,7 +60,7 @@
         <th>Dosage</th>
         <th>Batch Number</th>
         <th>Quantity</th>
-        <th>Qty/Box</th> <!-- New column header -->
+        <th>Qty/Box</th>
         <th>Unit</th>
         <th>Expiry Date</th>
         <th>Status</th>
@@ -71,17 +71,17 @@
       {% if purchases %}
         {% for purchase in purchases %}
           <tr data-purchase-id="{{ purchase[0] }}" data-product-id="{{ purchase[1] }}" data-quantity-per-box="{{ purchase[12] if purchase[12] else '1' }}">
-            <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td> <!-- Invoice Number -->
-            <td>{{ purchase[9] }}</td> <!-- Purchase Date -->
-            <td>{{ purchase[10] }}</td> <!-- Supplier -->
-            <td>{{ purchase[1] }}</td> <!-- Product Name -->
-            <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
-            <td>{{ purchase[3] }}</td> <!-- Batch Number -->
-            <td>{{ purchase[4] }}</td> <!-- Quantity -->
-            <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!-- Qty per Box (NEW COLUMN) -->
-            <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
-            <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
-            <td>{{ purchase[8] }}</td> <!-- Status -->
+            <td>{{ purchase[11] if purchase[11] else 'N/A' }}</td>
+            <td>{{ purchase[9] }}</td>
+            <td>{{ purchase[10] }}</td>
+            <td>{{ purchase[1] }}</td>
+            <td>{{ purchase[2] if purchase[2] else '' }}</td>
+            <td>{{ purchase[3] }}</td>
+            <td>{{ purchase[4] }}</td>
+            <td>{{ purchase[12] if purchase[12] else '1' }}</td>
+            <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td>
+            <td>{{ purchase[7] }}</td>
+            <td>{{ purchase[8] }}</td>
             <td>
               <button onclick="editPurchase('{{ purchase[0] }}')">Edit</button>
               <button onclick="deletePurchase('{{ purchase[0] }}')">Delete</button>
@@ -90,7 +90,7 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="12" style="text-align:center;">No purchases found</td> <!-- Changed from 11 to 12 -->
+          <td colspan="12" style="text-align:center;">No purchases found</td>
         </tr>
       {% endif %}
     </tbody>
@@ -109,64 +109,110 @@
   {% endfor %}
 </datalist>
 
-<!-- Add dosage and unit display fields to purchase modal -->
+<!-- Updated purchase modal with batch number and improved styling -->
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
-    <h2 id="modalTitle">Add Purchase</h2>
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative; font-size:13px;">
+    <h2 id="modalTitle" style="font-size:18px; margin-bottom:15px;">Add Purchase</h2>
     <form id="purchaseForm" action="/add-purchase" method="POST">
       <!-- Hidden field to store product_id -->
       <input type="hidden" name="product_id" id="productIdInput">
       
       <label>Invoice Number:</label><br>
-      <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
+      <input type="text" name="invoice_number" placeholder="Enter invoice number" style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
       
       <label>Product:</label><br>
-      <!-- Changed from select to searchable input with datalist -->
       <input type="text" id="productSearch" 
              list="productsList" 
              placeholder="Type to search products..." 
              autocomplete="off"
              required 
-             oninput="updatePurchaseProductInfo()">
-      <br><br>
+             oninput="updatePurchaseProductInfo()"
+             style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
+      <br>
+      
+      <!-- New Batch Number field -->
+      <label>Batch Number:</label><br>
+      <input type="text" name="batch_number" id="batchNumberInput" placeholder="Enter batch number" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
       
       <label>Purchase Quantity:</label><br>
-      <input type="number" name="purchase_quantity" min="1" required><br><br>
+      <input type="number" name="purchase_quantity" min="1" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
 
       <label>Quantity per Box (pieces per box):</label><br>
-      <input type="number" name="quantity_per_box" id="quantityPerBox" min="1" value="1" required><br><br>
+      <input type="number" name="quantity_per_box" id="quantityPerBox" min="1" value="1" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
       
       <label>Expiration Date:</label><br>
-      <input type="date" name="expiration_date" required><br><br>
+      <input type="date" name="expiration_date" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
       
       <label>Supplier:</label><br>
-      <select name="supplier" id="supplierSelect" onchange="toggleOtherSupplier()" required>
+      <select name="supplier" id="supplierSelect" onchange="toggleOtherSupplier()" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
         <option value="">Select Supplier</option>
         {% for supplier in suppliers %}
           <option value="{{ supplier }}">{{ supplier }}</option>
         {% endfor %}
         <option value="__other__">Other (enter below)</option>
       </select>
-      <div id="otherSupplierGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="otherSupplierInput" placeholder="Enter supplier name">
+      <div id="otherSupplierGroup" style="display:none; margin-bottom:10px;">
+        <input type="text" id="otherSupplierInput" placeholder="Enter supplier name" style="width:100%; padding:6px; font-size:13px;">
       </div>
-      <br><br>
 
-      <div style="text-align:right;">
-        <button type="button" onclick="closePurchaseModal()">Cancel</button>
-        <button type="submit" id="modalSubmit">Add</button>
+      <div style="text-align:right; margin-top:15px;">
+        <button type="button" onclick="closePurchaseModal()" style="padding:6px 12px; font-size:13px;">Cancel</button>
+        <button type="submit" id="modalSubmit" style="padding:6px 12px; font-size:13px;">Add</button>
       </div>
     </form>
   </div>
 </div>
   
 <style>
+  /* Improved table styling */
+  .purchases-table {
+    font-family: Arial, sans-serif;
+  }
+  
+  .purchases-table table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px; /* Smaller font for table */
+  }
+  
+  .purchases-table th {
+    background-color: #f5f5f5;
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 2px solid #ddd;
+  }
+  
+  .purchases-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    line-height: 1.4;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .purchases-table tr:hover td {
+    background-color: #f9f9f9;
+  }
+  
+  .purchases-table tr.expanded td {
+    white-space: normal;
+    overflow: visible;
+    max-width: none;
+    background-color: #f0f8ff;
+  }
+  
   td button {
     margin: 2px;
-    padding: 2px 4px;
+    padding: 5px 10px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 12px; /* Smaller font for buttons */
   }
   td button:first-child {
     background-color: #4CAF50;
@@ -176,16 +222,28 @@
     background-color: #f44336;
     color: white;
   }
+  
+  /* Form styling */
+  .modal input, .modal select, .modal label, .modal button {
+    font-size: 13px !important;
+  }
+  
   /* Style for datalist dropdown */
   datalist {
     max-height: 200px;
     overflow-y: auto;
   }
+  
   /* Highlight for invalid product selection */
   .product-invalid {
     border-color: #ff4444 !important;
+    border-width: 2px !important;
   }
-
+  
+  /* Make sure inputs have consistent styling */
+  input, select {
+    box-sizing: border-box;
+  }
 </style>
 
 <script>
@@ -245,6 +303,14 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     return;
   }
   
+  // Validate batch number
+  const batchNumberInput = document.getElementById('batchNumberInput');
+  if (!batchNumberInput.value.trim()) {
+    alert('Please enter a batch number.');
+    batchNumberInput.focus();
+    return;
+  }
+  
   isSubmitting = true;
   const form = this;
   const submitButton = form.querySelector('button[type="submit"]');
@@ -276,7 +342,7 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   .then(data => {
     alert(data.message);
     if (data.success) {
-      location.reload(); // reload only on success
+      location.reload();
     } else {
       submitButton.textContent = originalButtonText;
       submitButton.disabled = false;
@@ -291,32 +357,86 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   });
 });
 
-
-  function searchPurchasesTable() {
-    const input = document.getElementById("searchInput").value.toLowerCase();
-    const rows = document.querySelectorAll("#purchasesTable tbody tr");
-
-    rows.forEach(row => {
-      const rowText = row.textContent.toLowerCase();
-      row.style.display = rowText.includes(input) ? "" : "none";
-    });
+// Fixed product search function - doesn't auto-pick
+function updatePurchaseProductInfo() {
+  const productSearch = document.getElementById('productSearch');
+  const productIdInput = document.getElementById('productIdInput');
+  const searchValue = productSearch.value.trim();
+  
+  // Clear previous product ID
+  productIdInput.value = '';
+  
+  // Remove invalid class if present
+  productSearch.classList.remove('product-invalid');
+  
+  if (!searchValue) {
+    return;
   }
-
-  function togglePurchaseFilters() {
-    const filterOptions = document.getElementById("purchaseFilterOptions");
-    filterOptions.style.display = filterOptions.style.display === "none" ? "block" : "none";
+  
+  // Check if the product exists in our map (exact match only when selected from dropdown)
+  // We'll let the user select from dropdown without auto-picking
+  if (productDataMap[searchValue]) {
+    // Exact match found (user selected from dropdown)
+    productIdInput.value = productDataMap[searchValue].id;
+    productSearch.classList.remove('product-invalid');
+  } else {
+    // Mark as invalid only if there's text but no match
+    // Don't auto-pick anything
+    if (searchValue.length > 0) {
+      productSearch.classList.add('product-invalid');
+    }
   }
+}
 
-  function applyPurchaseFilters() {
+// Improved function to handle dropdown selection properly
+function handleProductSearchInput() {
+  const productSearch = document.getElementById('productSearch');
+  
+  // Listen for the 'input' event
+  productSearch.addEventListener('input', function(e) {
+    // Only validate when user stops typing for a moment
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      updatePurchaseProductInfo();
+    }, 500);
+  });
+  
+  // Listen for the 'change' event (when user selects from dropdown)
+  productSearch.addEventListener('change', function(e) {
+    updatePurchaseProductInfo();
+  });
+}
+
+// Call this when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  handleProductSearchInput();
+});
+
+function searchPurchasesTable() {
+  const input = document.getElementById("searchInput").value.toLowerCase();
+  const rows = document.querySelectorAll("#purchasesTable tbody tr");
+
+  rows.forEach(row => {
+    const rowText = row.textContent.toLowerCase();
+    row.style.display = rowText.includes(input) ? "" : "none";
+  });
+}
+
+function togglePurchaseFilters() {
+  const filterOptions = document.getElementById("purchaseFilterOptions");
+  filterOptions.style.display = filterOptions.style.display === "none" ? "block" : "none";
+}
+
+function applyPurchaseFilters() {
   const batchVal = document.getElementById("batchFilter").value.toLowerCase();
   const statusVal = document.getElementById("statusFilter").value.toLowerCase();
   const dateVal = document.getElementById("dateFilter").value;
   const rows = document.querySelectorAll("#purchasesTable tbody tr");
 
   rows.forEach(row => {
-    const batch = row.cells[5].textContent.toLowerCase(); // Batch is now index 5 (was 4)
-    const status = row.cells[10].textContent.toLowerCase(); // Status is now index 10 (was 7)
-    const date = row.cells[1].textContent; // Date remains index 1
+    const batch = row.cells[5].textContent.toLowerCase();
+    const status = row.cells[10].textContent.toLowerCase();
+    const date = row.cells[1].textContent;
 
     const matchBatch = !batchVal || batch.includes(batchVal);
     const matchStatus = !statusVal || status === statusVal;
@@ -326,7 +446,7 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   });
 }
   
-  function openPurchaseModal() {
+function openPurchaseModal() {
   document.getElementById("purchaseModal").style.display = "block";
   
   // Reset form if it's for adding new purchase
@@ -338,6 +458,8 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     document.getElementById('productIdInput').value = '';
     document.getElementById('productSearch').value = '';
     document.getElementById('productSearch').classList.remove('product-invalid');
+    document.getElementById('batchNumberInput').value = '';
+    document.getElementById('quantityPerBox').value = '1';
   }
 }
 
@@ -349,6 +471,8 @@ function closePurchaseModal() {
   document.getElementById('productIdInput').value = '';
   document.getElementById('productSearch').value = '';
   document.getElementById('productSearch').classList.remove('product-invalid');
+  document.getElementById('batchNumberInput').value = '';
+  document.getElementById('quantityPerBox').value = '1';
   // Reset form action to add-purchase for next time
   form.action = '/add-purchase';
 }
@@ -356,17 +480,17 @@ function closePurchaseModal() {
 function editPurchase(id) {
   const row = document.querySelector(`#purchasesTable tbody tr[data-purchase-id='${id}']`);
 
-  const invoiceNumber = row.cells[0].textContent.trim(); // Invoice Number
-  const dateReceived = row.cells[1].textContent; // Date Received
-  const supplier = row.cells[2].textContent; // Supplier
-  const productText = row.cells[3].textContent; // Product Name
-  const dosage = row.cells[4].textContent; // Dosage
-  const batchNumber = row.cells[5].textContent; // Batch Number
-  const quantity = row.cells[6].textContent; // Quantity
-  const qtyPerBox = row.cells[7].textContent; // Qty per Box (NEW)
-  const unit = row.cells[8].textContent; // Unit (was 7)
-  const expiry = row.cells[9].textContent; // Expiration Date (was 8)
-  const status = row.cells[10].textContent; // Status (was 9)
+  const invoiceNumber = row.cells[0].textContent.trim();
+  const dateReceived = row.cells[1].textContent;
+  const supplier = row.cells[2].textContent;
+  const productText = row.cells[3].textContent;
+  const dosage = row.cells[4].textContent;
+  const batchNumber = row.cells[5].textContent;
+  const quantity = row.cells[6].textContent;
+  const qtyPerBox = row.cells[7].textContent;
+  const unit = row.cells[8].textContent;
+  const expiry = row.cells[9].textContent;
+  const status = row.cells[10].textContent;
   const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
@@ -381,6 +505,7 @@ function editPurchase(id) {
   // Set product search field
   document.getElementById('productSearch').value = productText;
   document.getElementById('quantityPerBox').value = quantityPerBox;
+  document.getElementById('batchNumberInput').value = batchNumber;
   
   // Find the product ID from the data map
   const productSearchValue = productText;
@@ -390,7 +515,7 @@ function editPurchase(id) {
   if (productDataMap[productSearchValue]) {
     productId = productDataMap[productSearchValue].id;
   } else {
-    // Try partial match
+    // Try to find a matching product by constructing the full name
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
@@ -425,51 +550,13 @@ function editPurchase(id) {
   openPurchaseModal();
 }
 
-  
-function updatePurchaseProductInfo() {
-  const productSearch = document.getElementById('productSearch');
-  const productIdInput = document.getElementById('productIdInput');
-  const searchValue = productSearch.value.trim();
-  
-  // Clear previous product ID
-  productIdInput.value = '';
-  
-  // Remove invalid class if present
-  productSearch.classList.remove('product-invalid');
-  
-  if (!searchValue) {
-    return;
-  }
-  
-  // Check if the product exists in our map
-  if (productDataMap[searchValue]) {
-    // Exact match found
-    productIdInput.value = productDataMap[searchValue].id;
-  } else {
-    // Try to find a matching product
-    for (const [key, value] of Object.entries(productDataMap)) {
-      if (key.toLowerCase().includes(searchValue.toLowerCase())) {
-        // Found a match - set the full product name and ID
-        productSearch.value = key;
-        productIdInput.value = value.id;
-        break;
-      }
-    }
-    
-    // If still no match after trying partials, mark as invalid
-    if (!productIdInput.value) {
-      productSearch.classList.add('product-invalid');
-    }
-  }
-}
-
 function deletePurchase(id) {
   if (confirm("Are you sure you want to delete this purchase?")) {
     fetch('/delete-purchase/' + id, { method: 'POST' })
     .then(res => res.json())
     .then(data => {
-      alert(data.message); // show either success or error message
-      if (data.success) location.reload(); // reload only on success
+      alert(data.message);
+      if (data.success) location.reload();
     })
     .catch(err => alert('Error deleting purchase: ' + err));
   }
@@ -490,13 +577,15 @@ function toggleOtherSupplier() {
 document.addEventListener('DOMContentLoaded', function() {
   const productSearch = document.getElementById('productSearch');
   if (productSearch) {
+    // Don't auto-submit on Enter in the product field
     productSearch.addEventListener('keydown', function(e) {
-      // If user presses Enter in the product field, prevent form submission
       if (e.key === 'Enter') {
         e.preventDefault();
         updatePurchaseProductInfo();
       }
     });
+  }
+});
     
     // Also update when user selects from dropdown
     productSearch.addEventListener('change', updatePurchaseProductInfo);
@@ -571,6 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
