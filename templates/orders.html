@@ -25,7 +25,6 @@
       </button>
       <div id="orderFilterOptions" class="filter-options" style="display: none;">
         <div class="filter-group">
-          <!-- Change "Batch Number" to "Invoice Number" -->
           <label>Invoice Number:</label>
           <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." />
         </div>
@@ -61,14 +60,14 @@
                 data-quantity="{{ order[2] }}" 
                 data-date="{{ order[4] }}" 
                 data-customer="{{ order[5] }}">
-              <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
-              <td>{{ order[4] }}</td> <!-- Order Date -->
-              <td>{{ order[5] }}</td> <!-- Customer -->
-              <td>{{ order[1] }}</td> <!-- Product Name -->
-              <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
-              <td>{{ order[2] }}</td> <!-- Quantity -->
-              <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
-              <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
+              <td>{{ order[6] if order[6] else 'N/A' }}</td>
+              <td>{{ order[4] }}</td>
+              <td>{{ order[5] }}</td>
+              <td>{{ order[1] }}</td>
+              <td>{{ order[8] if order[8] else '' }}</td>
+              <td>{{ order[2] }}</td>
+              <td>{{ order[9] if order[9] else '1' }}</td>
+              <td>{{ order[7] if order[7] else 'N/A' }}</td>
               <td>
                 <button onclick="editOrderRow({{ order[0] }})">Edit</button>
                 <button onclick="event.stopPropagation(); deleteOrder('{{ order[0] }}')">Delete</button>
@@ -87,11 +86,46 @@
 
 <!-- Add this CSS in the <style> section -->
 <style>
+  /* Improved table font and spacing */
+  .orders-table {
+    font-family: Arial, sans-serif;
+  }
+  
+  .orders-table table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px; /* Smaller font for table */
+  }
+  
+  .orders-table th {
+    background-color: #f5f5f5;
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 2px solid #ddd;
+  }
+  
+  .orders-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    line-height: 1.4;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .orders-table tr:hover td {
+    background-color: #f9f9f9;
+  }
   
   .orders-table tr.expanded td {
     white-space: normal;
     overflow: visible;
     max-width: none;
+    background-color: #f0f8ff;
   }
   
   /* Keep action buttons always visible */
@@ -103,10 +137,11 @@
   
   td button {
     margin: 2px;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 12px; /* Smaller font for buttons */
   }
   td button:first-child {
     background-color: #4CAF50;
@@ -115,6 +150,15 @@
   td button:last-child {
     background-color: #f44336;
     color: white;
+  }
+  
+  /* Form font adjustments */
+  .modal input, .modal select, .modal label {
+    font-size: 13px !important; /* Smaller font for forms */
+  }
+  
+  .modal {
+    font-size: 13px;
   }
 </style>
 
@@ -132,49 +176,47 @@
 
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
-    <h2>Add Order</h2>
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative; font-size:13px;">
+    <h2 style="font-size:18px; margin-bottom:15px;">Add Order</h2>
     <form id="addOrderForm">
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" id="addInvoiceNumber" 
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
-             required>
-      <br><br>
+             required
+             style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
+      <br>
 
-      <!-- Product selection dropdown (initially hidden) -->
-      <div id="addProductSelectGroup" style="display:none;">
+      <!-- Product selection dropdown -->
+      <div id="addProductSelectGroup" style="display:none; margin-bottom:10px;">
         <label>Select Product:</label><br>
-        <select name="product_id" id="addProductSelect" required>
+        <select name="product_id" id="addProductSelect" required style="width:100%; padding:6px; font-size:13px;">
           <option value="">Select a product</option>
-          <!-- Products will be populated by JavaScript -->
         </select>
-        <br><br>
       </div>
 
       <label>Available Quantity:</label><br>
-      <input type="text" id="addAvailableQty" readonly><br><br>
+      <input type="text" id="addAvailableQty" readonly style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
 
       <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
+      <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
 
       <label>Customer:</label><br>
-      <select name="customer" id="addCustomer" required>
+      <select name="customer" id="addCustomer" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
         <option value="">Select Customer</option>
         {% for customer in customers %}
           <option value="{{ customer }}">{{ customer }}</option>
         {% endfor %}
         <option value="__other__">Other (enter below)</option>
       </select>
-      <div id="addOtherCustomerGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="addOtherCustomerInput" placeholder="Enter customer name">
+      <div id="addOtherCustomerGroup" style="display:none; margin-bottom:10px;">
+        <input type="text" id="addOtherCustomerInput" placeholder="Enter customer name" style="width:100%; padding:6px; font-size:13px;">
       </div>
-      <br><br>
 
-      <div style="text-align:right;">
-        <button type="button" onclick="closeAddOrderModal()">Cancel</button>
-        <button type="submit">Add</button>
+      <div style="text-align:right; margin-top:15px;">
+        <button type="button" onclick="closeAddOrderModal()" style="padding:6px 12px; font-size:13px;">Cancel</button>
+        <button type="submit" style="padding:6px 12px; font-size:13px;">Add</button>
       </div>
     </form>
   </div>
@@ -182,8 +224,8 @@
 
 <!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
-    <h2>Edit Order</h2>
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative; font-size:13px;">
+    <h2 style="font-size:18px; margin-bottom:15px;">Edit Order</h2>
     <form id="editOrderForm">
       <input type="hidden" name="order_id" id="editOrderId">
 
@@ -192,41 +234,39 @@
              list="invoiceNumbersList" 
              placeholder="Type to search invoice numbers..." 
              autocomplete="off"
-             required>
-      <br><br>
+             required
+             style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
+      <br>
 
-      <!-- Product selection dropdown (initially hidden) -->
-      <div id="editProductSelectGroup" style="display:none;">
+      <!-- Product selection dropdown -->
+      <div id="editProductSelectGroup" style="display:none; margin-bottom:10px;">
         <label>Select Product:</label><br>
-        <select name="product_id" id="editProductSelect" required>
+        <select name="product_id" id="editProductSelect" required style="width:100%; padding:6px; font-size:13px;">
           <option value="">Select a product</option>
-          <!-- Products will be populated by JavaScript -->
         </select>
-        <br><br>
       </div>
 
       <label>Available Quantity:</label><br>
-      <input type="text" id="editAvailableQty" readonly><br><br>
+      <input type="text" id="editAvailableQty" readonly style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
 
       <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
+      <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;"><br>
 
       <label>Customer:</label><br>
-      <select name="customer" id="editCustomer" required>
+      <select name="customer" id="editCustomer" required style="width:100%; padding:6px; margin-bottom:10px; font-size:13px;">
         <option value="">Select Customer</option>
         {% for customer in customers %}
           <option value="{{ customer }}">{{ customer }}</option>
         {% endfor %}
         <option value="__other__">Other (enter below)</option>
       </select>
-      <div id="editOtherCustomerGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="editOtherCustomerInput" placeholder="Enter customer name">
+      <div id="editOtherCustomerGroup" style="display:none; margin-bottom:10px;">
+        <input type="text" id="editOtherCustomerInput" placeholder="Enter customer name" style="width:100%; padding:6px; font-size:13px;">
       </div>
-      <br><br>
 
-      <div style="text-align:right;">
-        <button type="button" onclick="closeEditOrderModal()">Cancel</button>
-        <button type="submit">Save</button>
+      <div style="text-align:right; margin-top:15px;">
+        <button type="button" onclick="closeEditOrderModal()" style="padding:6px 12px; font-size:13px;">Cancel</button>
+        <button type="submit" style="padding:6px 12px; font-size:13px;">Save</button>
       </div>
     </form>
   </div>
@@ -967,6 +1007,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
