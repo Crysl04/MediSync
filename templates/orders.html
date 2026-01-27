@@ -87,6 +87,44 @@
 
 <!-- Add this CSS in the <style> section -->
 <style>
+  /* Make table fonts smaller */
+  .orders-table table {
+    font-size: 13px; /* Reduced from default */
+  }
+  
+  /* Make table headers smaller */
+  .orders-table th {
+    font-size: 12px; /* Smaller headers */
+    padding: 6px 8px; /* Adjust padding */
+  }
+  
+  /* Make table cells smaller */
+  .orders-table td {
+    font-size: 13px; /* Smaller text */
+    padding: 6px 8px; /* Adjust padding */
+  }
+  
+  /* Make action buttons smaller */
+  td button {
+    margin: 1px;
+    padding: 3px 6px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px; /* Smaller button text */
+  }
+  
+  /* Make modal forms smaller */
+  .modal input,
+  .modal select,
+  .modal label {
+    font-size: 13px; /* Smaller font in modals */
+  }
+  
+  /* Reduce modal padding */
+  .modal > div {
+    padding: 15px;
+  }
   
   .orders-table tr.expanded td {
     white-space: normal;
@@ -99,22 +137,6 @@
     white-space: nowrap;
     max-width: none;
     cursor: default;
-  }
-  
-  td button {
-    margin: 2px;
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  td button:first-child {
-    background-color: #4CAF50;
-    color: white;
-  }
-  td button:last-child {
-    background-color: #f44336;
-    color: white;
   }
 </style>
 
@@ -132,8 +154,8 @@
 
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
-    <h2>Add Order</h2>
+  <div style="background:#fff; margin:5% auto; padding:15px; border-radius:6px; width:380px; position:relative; font-size: 13px;">
+    <h2 style="font-size: 18px;">Add Order</h2>
     <form id="addOrderForm">
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" id="addInvoiceNumber" 
@@ -182,8 +204,8 @@
 
 <!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
-    <h2>Edit Order</h2>
+  <div style="background:#fff; margin:5% auto; padding:15px; border-radius:6px; width:380px; position:relative; font-size: 13px;">
+    <h2 style="font-size: 18px;">Edit Order</h2>
     <form id="editOrderForm">
       <input type="hidden" name="order_id" id="editOrderId">
 
@@ -967,5 +989,6 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
