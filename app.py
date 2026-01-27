@@ -617,7 +617,6 @@ def add_purchase():
         expiration_date = request.form['expiration_date']
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
-        batch_number = request.form.get('batch_number', '')  # Get batch number from form
 
         # Get product name, dosage, and unit_name from product table
         c.execute("""
@@ -635,17 +634,16 @@ def add_purchase():
         dosage = dosage if dosage else ''
         unit_name = unit_name if unit_name else ''
 
-        # Update the INSERT statement to include batch_number
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, unit_name, dosage, quantity_per_box)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number))
+              supplier, invoice_number, unit_name, dosage, quantity_per_box))
 
         conn.commit()
-        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, batch {batch_number}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -664,22 +662,39 @@ def edit_purchase(purchase_id):
     quantity_per_box = int(request.form.get('quantity_per_box', 1))
     expiration_date = request.form['expiration_date']
     invoice_number = request.form.get('invoice_number', '')
-    batch_number = request.form.get('batch_number', '')  # Get batch number from form
 
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
 
-        # Update the query to include batch_number in the UPDATE
+        c.execute("SELECT batch_number FROM Purchase WHERE id = %s", (purchase_id,))
+        batch_number = c.fetchone()[0]
+
+        c.execute("""SELECT COALESCE(SUM(order_quantity), 0) 
+                     FROM "Order" WHERE product_id=%s AND batch_number=%s""",
+                  (product_id, batch_number))
+        total_ordered_quantity = c.fetchone()[0]
+
+        new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
+
+        # Get unit_name and dosage from product table
         c.execute("""
-            UPDATE Purchase
-            SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                expiration_date=%s, invoice_number=%s, unit_name=%s, 
-                dosage=%s, quantity_per_box=%s, batch_number=%s
-            WHERE id=%s
-        """, (product_id, new_purchase_quantity, new_remaining_quantity, 
-              expiration_date, invoice_number, unit_name, dosage, quantity_per_box, batch_number, purchase_id))
+            SELECT p.dosage, u.unit_name 
+            FROM Product p
+            LEFT JOIN Unit u ON p.unit_id = u.id
+            WHERE p.id = %s
+        """, (product_id,))
+        result = c.fetchone()
+        dosage = result[0] if result else ''
+        unit_name = result[1] if result else ''
+
+        c.execute("""UPDATE Purchase
+                     SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
+                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, quantity_per_box=%s
+                     WHERE id=%s""",
+                  (product_id, new_purchase_quantity, new_remaining_quantity, 
+                   expiration_date, invoice_number, unit_name, dosage, quantity_per_box, purchase_id))
         conn.commit()
         log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
