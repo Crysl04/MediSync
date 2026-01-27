@@ -617,6 +617,10 @@ def add_purchase():
         expiration_date = request.form['expiration_date']
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
+        batch_number = request.form.get('batch_number', '')  # Get batch number from form
+
+        if not batch_number:
+            return jsonify({'success': False, 'message': 'Batch number is required'})
 
         # Get product name, dosage, and unit_name from product table
         c.execute("""
@@ -634,16 +638,25 @@ def add_purchase():
         dosage = dosage if dosage else ''
         unit_name = unit_name if unit_name else ''
 
+        # Check if batch number already exists for this product
+        c.execute("""
+            SELECT id FROM Purchase 
+            WHERE product_id = %s AND batch_number = %s
+        """, (product_id, batch_number))
+        
+        if c.fetchone():
+            return jsonify({'success': False, 'message': 'Batch number already exists for this product'})
+
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_name, dosage, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_name, dosage, quantity_per_box))
+              supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number))
 
         conn.commit()
-        log_activity(session['username'], f"Added purchase: product_id {product_id}, qty {purchase_quantity}, qty_per_box {quantity_per_box}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, batch {batch_number}, qty {purchase_quantity}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -662,18 +675,33 @@ def edit_purchase(purchase_id):
     quantity_per_box = int(request.form.get('quantity_per_box', 1))
     expiration_date = request.form['expiration_date']
     invoice_number = request.form.get('invoice_number', '')
+    new_batch_number = request.form.get('batch_number', '')  # Get new batch number from form
+
+    if not new_batch_number:
+        return jsonify({'success': False, 'message': 'Batch number is required'})
 
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
 
+        # Get old batch number
         c.execute("SELECT batch_number FROM Purchase WHERE id = %s", (purchase_id,))
-        batch_number = c.fetchone()[0]
+        old_batch_number = c.fetchone()[0]
+
+        # Check if new batch number already exists for this product (if changed)
+        if new_batch_number != old_batch_number:
+            c.execute("""
+                SELECT id FROM Purchase 
+                WHERE product_id = %s AND batch_number = %s AND id != %s
+            """, (product_id, new_batch_number, purchase_id))
+            
+            if c.fetchone():
+                return jsonify({'success': False, 'message': 'Batch number already exists for this product'})
 
         c.execute("""SELECT COALESCE(SUM(order_quantity), 0) 
                      FROM "Order" WHERE product_id=%s AND batch_number=%s""",
-                  (product_id, batch_number))
+                  (product_id, old_batch_number))
         total_ordered_quantity = c.fetchone()[0]
 
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
@@ -689,14 +717,25 @@ def edit_purchase(purchase_id):
         dosage = result[0] if result else ''
         unit_name = result[1] if result else ''
 
+        # Update purchase with new batch number
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
-                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, quantity_per_box=%s
+                         expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, 
+                         quantity_per_box=%s, batch_number=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, 
-                   expiration_date, invoice_number, unit_name, dosage, quantity_per_box, purchase_id))
+                   expiration_date, invoice_number, unit_name, dosage, 
+                   quantity_per_box, new_batch_number, purchase_id))
+        
+        # Update orders with the new batch number if batch number changed
+        if new_batch_number != old_batch_number:
+            c.execute("""UPDATE "Order"
+                         SET batch_number=%s
+                         WHERE product_id=%s AND batch_number=%s""",
+                      (new_batch_number, product_id, old_batch_number))
+        
         conn.commit()
-        log_activity(session['username'], f"Edited purchase ID {purchase_id}")
+        log_activity(session['username'], f"Edited purchase ID {purchase_id}, batch {old_batch_number} to {new_batch_number}")
 
         return jsonify({'success': True, 'message': "Purchase updated successfully!"})
     except Exception as e:
