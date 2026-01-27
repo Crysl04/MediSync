@@ -111,8 +111,8 @@
 
 <!-- Add dosage and unit display fields to purchase modal -->
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:350px; position:relative;">
-    <h2 id="modalTitle">Add Purchase</h2>
+  <div style="background:#fff; margin:5% auto; padding:15px; border-radius:6px; width:380px; position:relative; font-size: 13px;">
+    <h2 id="modalTitle" style="font-size: 18px;">Add Purchase</h2> <!-- Smaller modal title -->
     <form id="purchaseForm" action="/add-purchase" method="POST">
       <!-- Hidden field to store product_id -->
       <input type="hidden" name="product_id" id="productIdInput">
@@ -120,14 +120,16 @@
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
+      <!-- Add Batch Number field -->
+      <label>Batch Number:</label><br>
+      <input type="text" name="batch_number" id="batchNumberInput" placeholder="Enter batch number" required><br><br>
+      
       <label>Product:</label><br>
-      <!-- Changed from select to searchable input with datalist -->
       <input type="text" id="productSearch" 
              list="productsList" 
              placeholder="Type to search products..." 
              autocomplete="off"
-             required 
-             oninput="updatePurchaseProductInfo()">
+             required>
       <br><br>
       
       <label>Purchase Quantity:</label><br>
@@ -161,31 +163,53 @@
 </div>
   
 <style>
+  /* Make purchase table fonts smaller */
+  .purchases-table table {
+    font-size: 13px; /* Reduced from default */
+  }
+  
+  /* Make table headers smaller */
+  .purchases-table th {
+    font-size: 12px; /* Smaller headers */
+    padding: 6px 8px; /* Adjust padding */
+  }
+  
+  /* Make table cells smaller */
+  .purchases-table td {
+    font-size: 13px; /* Smaller text */
+    padding: 6px 8px; /* Adjust padding */
+  }
+  
+  /* Make action buttons smaller */
   td button {
-    margin: 2px;
-    padding: 2px 4px;
+    margin: 1px;
+    padding: 3px 6px;
     border: none;
-    border-radius: 4px;
+    border-radius: 3px;
     cursor: pointer;
+    font-size: 11px; /* Smaller button text */
   }
-  td button:first-child {
-    background-color: #4CAF50;
-    color: white;
+  
+  /* Make modal forms smaller */
+  #purchaseModal input,
+  #purchaseModal select,
+  #purchaseModal label {
+    font-size: 13px; /* Smaller font in modals */
   }
-  td button:last-child {
-    background-color: #f44336;
-    color: white;
+  
+  /* Reduce modal padding */
+  #purchaseModal > div {
+    padding: 15px;
   }
-  /* Style for datalist dropdown */
+  
   datalist {
     max-height: 200px;
     overflow-y: auto;
   }
-  /* Highlight for invalid product selection */
+  
   .product-invalid {
     border-color: #ff4444 !important;
   }
-
 </style>
 
 <script>
@@ -363,10 +387,10 @@ function editPurchase(id) {
   const dosage = row.cells[4].textContent; // Dosage
   const batchNumber = row.cells[5].textContent; // Batch Number
   const quantity = row.cells[6].textContent; // Quantity
-  const qtyPerBox = row.cells[7].textContent; // Qty per Box (NEW)
-  const unit = row.cells[8].textContent; // Unit (was 7)
-  const expiry = row.cells[9].textContent; // Expiration Date (was 8)
-  const status = row.cells[10].textContent; // Status (was 9)
+  const qtyPerBox = row.cells[7].textContent; // Qty per Box
+  const unit = row.cells[8].textContent; // Unit
+  const expiry = row.cells[9].textContent; // Expiration Date
+  const status = row.cells[10].textContent; // Status
   const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
@@ -377,6 +401,7 @@ function editPurchase(id) {
 
   // Populate form fields
   form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
+  form.batch_number.value = batchNumber; // Populate batch number
   
   // Set product search field
   document.getElementById('productSearch').value = productText;
@@ -390,7 +415,7 @@ function editPurchase(id) {
   if (productDataMap[productSearchValue]) {
     productId = productDataMap[productSearchValue].id;
   } else {
-    // Try partial match
+    // Try partial match for editing existing records
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
@@ -441,25 +466,13 @@ function updatePurchaseProductInfo() {
     return;
   }
   
-  // Check if the product exists in our map
+  // Check if the product exists in our map (exact match)
   if (productDataMap[searchValue]) {
     // Exact match found
     productIdInput.value = productDataMap[searchValue].id;
   } else {
-    // Try to find a matching product
-    for (const [key, value] of Object.entries(productDataMap)) {
-      if (key.toLowerCase().includes(searchValue.toLowerCase())) {
-        // Found a match - set the full product name and ID
-        productSearch.value = key;
-        productIdInput.value = value.id;
-        break;
-      }
-    }
-    
-    // If still no match after trying partials, mark as invalid
-    if (!productIdInput.value) {
-      productSearch.classList.add('product-invalid');
-    }
+    // Don't auto-select - wait for user to choose from dropdown
+    productSearch.classList.add('product-invalid');
   }
 }
 
@@ -490,16 +503,17 @@ function toggleOtherSupplier() {
 document.addEventListener('DOMContentLoaded', function() {
   const productSearch = document.getElementById('productSearch');
   if (productSearch) {
-    productSearch.addEventListener('keydown', function(e) {
-      // If user presses Enter in the product field, prevent form submission
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        updatePurchaseProductInfo();
-      }
+    // Remove the oninput event and add change event
+    productSearch.addEventListener('input', function() {
+      // Clear product ID when user types
+      document.getElementById('productIdInput').value = '';
+      this.classList.remove('product-invalid');
     });
     
-    // Also update when user selects from dropdown
-    productSearch.addEventListener('change', updatePurchaseProductInfo);
+    // When user selects from dropdown
+    productSearch.addEventListener('change', function() {
+      updatePurchaseProductInfo();
+    });
   }
 });
 
@@ -571,6 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
