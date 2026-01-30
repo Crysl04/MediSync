@@ -28,16 +28,17 @@
     .notification-buttons { display: flex; justify-content: space-between; margin-top: 10px; }
     .notif-close { cursor: pointer; font-size: 18px; }
 
-    /* Centered Alert Modal */
+    /* Centered Alert Modal - REPOSITIONED TO BOTTOM RIGHT */
     .notification-modal {
       position: fixed;
-      top: 20px;
+      bottom: 20px;  /* Changed from top: 20px */
       right: 20px;
+      top: auto;     /* Added to override any top positioning */
       z-index: 9999;
       padding: 0;
       pointer-events: none;
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(20px); /* Changed from translateY(-10px) to slide up */
       transition: opacity 0.4s ease, transform 0.4s ease;
     }
 
@@ -117,11 +118,12 @@
       width: 100%;
     }
 
-    /* ADD THIS: User Alert Modal (for success/error messages) */
+    /* User Alert Modal (for success/error messages) - REPOSITIONED TO BOTTOM RIGHT */
     .user-alert-modal {
       position: fixed;
-      top: 20px;
+      bottom: 20px;  /* Changed from top: 20px */
       right: 20px;
+      top: auto;     /* Added to override any top positioning */
       z-index: 10000;
       background: white;
       width: 320px;
@@ -132,7 +134,7 @@
       align-items: center;
       gap: 15px;
       border-left: 5px solid #3498db;
-      animation: slideIn 0.3s ease;
+      animation: slideInFromBottom 0.3s ease; /* Changed animation */
     }
 
     .user-alert-modal.show {
@@ -202,17 +204,30 @@
       color: #374151;
     }
 
-    @keyframes slideIn {
+    /* Updated animation for bottom-right positioning */
+    @keyframes slideInFromBottom {
       from {
-        transform: translateX(100%);
+        transform: translateY(100%);
         opacity: 0;
       }
       to {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
       }
     }
+
+    /* Optional: Add a container for stacking notifications if needed */
+    .notification-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 10px;
+      z-index: 9998;
+    }
   </style>
+  
 </head>
 
 <body class="dashboard-body">
@@ -408,4 +423,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(fetchNotifications, 30000);
 });
 </script>
+
 
