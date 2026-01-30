@@ -124,18 +124,6 @@
     color: white;
   }
   
-  /* Make modal forms smaller */
-  .modal input,
-  .modal select,
-  .modal label {
-    font-size: 13px; /* Smaller font in modals */
-  }
-  
-  /* Reduce modal padding */
-  .modal > div {
-    padding: 15px;
-  }
-  
   .orders-table tr.expanded td {
     white-space: normal;
     overflow: visible;
@@ -164,8 +152,8 @@
 
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:15px; border-radius:6px; width:380px; position:relative; font-size: 13px;">
-    <h2 style="font-size: 18px;">Add Order</h2>
+  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
+    <h2>Add Order</h2>
     <form id="addOrderForm">
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" id="addInvoiceNumber" 
@@ -1001,6 +989,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
