@@ -50,9 +50,11 @@
           <th>Quantity</th>
           <th>Qty per Box</th>
           <th>Unit</th>
+          <th>Selling Price</th>
           <th>Actions</th>
         </tr>
       </thead>
+      
       <tbody>
         {% if orders %}
           {% for order in orders %}
@@ -69,6 +71,7 @@
               <td>{{ order[2] }}</td> <!-- Quantity -->
               <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
               <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
+              <td>₱{{ "%.2f"|format(order[10]) if order[10] else '0.00' }}</td> <!-- Selling Price -->
               <td>
                 <button onclick="editOrderRow({{ order[0] }})">Edit</button>
                 <button onclick="event.stopPropagation(); deleteOrder('{{ order[0] }}')">Delete</button>
@@ -77,7 +80,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="9" style="text-align: center;">No orders found</td>
+            <td colspan="10" style="text-align: center;">No orders found</td> 
           </tr>
         {% endif %}
       </tbody>
@@ -85,14 +88,12 @@
   </div>
 </div>
 
-<!-- Add this CSS in the <style> section -->
 <style>
-  /* Make table fonts smaller */
   .orders-table table {
-    font-size: 13px; /* Reduced from default */
+    font-size: 13px; 
   }
   
-  /* Make table headers smaller */
+ 
   .orders-table th {
     font-size: 12px; /* Smaller headers */
     padding: 6px 8px; /* Adjust padding */
@@ -165,12 +166,11 @@
              required>
       <br><br>
 
-      <!-- Product selection dropdown (initially hidden) -->
+      <!-- Product selection dropdown -->
       <div id="addProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
         <select name="product_id" id="addProductSelect" required>
           <option value="">Select a product</option>
-          <!-- Products will be populated by JavaScript -->
         </select>
         <br><br>
       </div>
@@ -180,6 +180,9 @@
 
       <label>Order Quantity:</label><br>
       <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
+
+      <label>Selling Price (₱):</label><br>
+      <input type="number" name="selling_price" id="addSellingPrice" min="0" step="0.01" value="0.00"><br><br>
 
       <label>Customer:</label><br>
       <select name="customer" id="addCustomer" required>
@@ -217,12 +220,11 @@
              required>
       <br><br>
 
-      <!-- Product selection dropdown (initially hidden) -->
+      <!-- Product selection dropdown -->
       <div id="editProductSelectGroup" style="display:none;">
         <label>Select Product:</label><br>
         <select name="product_id" id="editProductSelect" required>
           <option value="">Select a product</option>
-          <!-- Products will be populated by JavaScript -->
         </select>
         <br><br>
       </div>
@@ -232,6 +234,9 @@
 
       <label>Order Quantity:</label><br>
       <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
+
+      <label>Selling Price (₱):</label><br>
+      <input type="number" name="selling_price" id="editSellingPrice" min="0" step="0.01" value="0.00"><br><br>
 
       <label>Customer:</label><br>
       <select name="customer" id="editCustomer" required>
@@ -321,14 +326,15 @@ function editOrderRow(orderId) {
   const dosage = row.cells[4].textContent;
   const unit = row.cells[7].textContent;
   const quantityPerBox = parseInt(row.cells[6].textContent) || 1;
+  const sellingPrice = parseFloat(row.cells[8].textContent.replace('₱', '')) || 0; // Get selling price
   
   console.log("Opening edit modal with data:", {
-    orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox
+    orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice
   });
   
-  openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox);
+  openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice);
 }
-
+  
 // Filter functions
 function toggleOrderFilterOptions() {
   const filterBox = document.getElementById("orderFilterOptions");
@@ -443,18 +449,19 @@ function closeAddOrderModal() {
 }
 
 // Edit Order Modal functions - Fixed function to properly handle all parameters
-function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox) {
-  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox});
+function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice) {
+  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice});
   
   document.getElementById('editOrderId').value = orderId;
   const editInvoiceInput = document.getElementById('editInvoiceNumber');
   editInvoiceInput.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
   
-  // Store old values for calculation
+  // Store old values
   editInvoiceInput.setAttribute('data-old-invoice', invoiceNumber);
   editInvoiceInput.setAttribute('data-old-quantity', quantity);
   
   document.getElementById('editOrderQuantity').value = quantity;
+  document.getElementById('editSellingPrice').value = sellingPrice.toFixed(2); // Set selling price
   document.getElementById('editOrderId').setAttribute('data-quantity-per-box', quantityPerBox);
   
   // Set customer dropdown
@@ -473,7 +480,7 @@ function openEditOrderModal(orderId, productName, invoiceNumber, quantity, custo
     }
   }
   
-  // If customer not found in the list, show "Other" input
+  // If customer not found, show "Other" input
   if (!found) {
     customerSelect.value = '__other__';
     otherGroup.style.display = 'block';
@@ -538,14 +545,8 @@ function fetchProductsForInvoice(type, presetInvoice = null, presetProductName =
   
   // Fetch all products for this invoice number
   fetch(`/get-products-by-invoice/${encodeURIComponent(invoiceNumber)}`)
-    .then(res => {
-      if (!res.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return res.json();
-    })
+    .then(res => res.json())
     .then(data => {
-      console.log('Products data received:', data);
       if (data.success && data.products && data.products.length > 0) {
         // Clear previous products
         productsArray.length = 0;
@@ -696,8 +697,6 @@ function updateAvailableQuantityForEdit() {
 
 // Setup form handlers
 function setupFormHandlers() {
-  console.log("Setting up form handlers...");
-  
   // Add Order Form Submission
   const addOrderForm = document.getElementById('addOrderForm');
   if (addOrderForm) {
@@ -727,11 +726,12 @@ function setupFormHandlers() {
         customerValue = customerSelect.value;
       }
       
-      const invoiceNumber = document.getElementById('addInvoiceNumber')?.value.trim();
+       const invoiceNumber = document.getElementById('addInvoiceNumber')?.value.trim();
       const productSelect = document.getElementById('addProductSelect');
       const productId = productSelect?.value;
       const quantity = parseInt(document.getElementById('addOrderQuantity')?.value || 0);
-
+      const sellingPrice = parseFloat(document.getElementById('addSellingPrice')?.value || 0);
+      
       if(!invoiceNumber || !productId || isNaN(quantity) || quantity <= 0 || !customerValue) {
         alert('Please fill all fields correctly.');
         return;
@@ -785,7 +785,8 @@ function setupFormHandlers() {
           unit_name: selectedProduct.unit_name,
           quantity_per_box: selectedProduct.quantity_per_box,
           order_quantity: quantity, 
-          customer: customerValue 
+          customer: customerValue,
+          selling_price: sellingPrice  // NEW: Include selling price
         })
       })
       .then(res => res.json())
@@ -812,7 +813,7 @@ function setupFormHandlers() {
   }
 
   // Edit Order Form Submission
-  const editOrderForm = document.getElementById('editOrderForm');
+ const editOrderForm = document.getElementById('editOrderForm');
   if (editOrderForm) {
     editOrderForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -845,6 +846,7 @@ function setupFormHandlers() {
       const productSelect = document.getElementById('editProductSelect');
       const productId = productSelect?.value;
       const quantity = parseInt(document.getElementById('editOrderQuantity')?.value || 0);
+      const sellingPrice = parseFloat(document.getElementById('editSellingPrice')?.value || 0);
 
       if (!orderId || !invoiceNumber || !productId || isNaN(quantity) || quantity <= 0) {
         alert('Please fill all fields correctly.');
@@ -899,7 +901,8 @@ function setupFormHandlers() {
           unit_name: selectedProduct.unit_name,
           quantity_per_box: selectedProduct.quantity_per_box,
           order_quantity: quantity, 
-          customer: customerValue 
+          customer: customerValue,
+          selling_price: sellingPrice  // NEW: Include selling price
         })
       })
       .then(res => res.json())
@@ -989,6 +992,7 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
 
 
 
