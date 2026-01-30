@@ -60,13 +60,16 @@
         <th>Dosage</th>
         <th>Batch Number</th>
         <th>Quantity</th>
-        <th>Qty/Box</th> <!-- New column header -->
+        <th>Qty/Box</th>
         <th>Unit</th>
+        <th>Costing Price</th> <!-- NEW COLUMN -->
         <th>Expiry Date</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
     </thead>
+    
+    <!-- In the table body, add costing price column -->
     <tbody>
       {% if purchases %}
         {% for purchase in purchases %}
@@ -78,8 +81,9 @@
             <td>{{ purchase[2] if purchase[2] else '' }}</td> <!-- Dosage -->
             <td>{{ purchase[3] }}</td> <!-- Batch Number -->
             <td>{{ purchase[4] }}</td> <!-- Quantity -->
-            <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!-- Qty per Box (NEW COLUMN) -->
+            <td>{{ purchase[12] if purchase[12] else '1' }}</td> <!-- Qty per Box -->
             <td>{{ purchase[5] if purchase[5] else 'N/A' }}</td> <!-- Unit -->
+            <td>₱{{ "%.2f"|format(purchase[13]) if purchase[13] else '0.00' }}</td> <!-- Costing Price -->
             <td>{{ purchase[7] }}</td> <!-- Expiration Date -->
             <td>{{ purchase[8] }}</td> <!-- Status -->
             <td>
@@ -90,7 +94,7 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="12" style="text-align:center;">No purchases found</td> <!-- Changed from 11 to 12 -->
+          <td colspan="13" style="text-align:center;">No purchases found</td> <!-- Changed from 12 to 13 -->
         </tr>
       {% endif %}
     </tbody>
@@ -112,15 +116,13 @@
 <!-- Add dosage and unit display fields to purchase modal -->
 <div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:15px; border-radius:6px; width:380px; position:relative; font-size: 13px;">
-    <h2 id="modalTitle" style="font-size: 18px;">Add Purchase</h2> <!-- Smaller modal title -->
+    <h2 id="modalTitle" style="font-size: 18px;">Add Purchase</h2>
     <form id="purchaseForm" action="/add-purchase" method="POST">
-      <!-- Hidden field to store product_id -->
       <input type="hidden" name="product_id" id="productIdInput">
       
       <label>Invoice Number:</label><br>
       <input type="text" name="invoice_number" placeholder="Enter invoice number"><br><br>
       
-      <!-- Add Batch Number field -->
       <label>Batch Number:</label><br>
       <input type="text" name="batch_number" id="batchNumberInput" placeholder="Enter batch number" required><br><br>
       
@@ -137,6 +139,10 @@
 
       <label>Quantity per Box (pieces per box):</label><br>
       <input type="number" name="quantity_per_box" id="quantityPerBox" min="1" value="1" required><br><br>
+      
+      <!-- NEW: Costing Price field -->
+      <label>Costing Price (₱):</label><br>
+      <input type="number" name="costing_price" id="costingPrice" min="0" step="0.01" value="0.00" required><br><br>
       
       <label>Expiration Date:</label><br>
       <input type="date" name="expiration_date" required><br><br>
@@ -253,7 +259,6 @@ let isSubmitting = false;
 document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   e.preventDefault();
   
-  // Prevent double submission
   if (isSubmitting) {
     alert('Please wait, form is already submitting...');
     return;
@@ -274,11 +279,10 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   const submitButton = form.querySelector('button[type="submit"]');
   const originalButtonText = submitButton.textContent;
   
-  // Show loading state
   submitButton.textContent = 'Processing...';
   submitButton.disabled = true;
   
-  // Handle "Other" supplier option
+  // Handle form data
   const formData = new FormData(form);
   if (form.supplier.value === '__other__') {
     const otherSupplier = document.getElementById('otherSupplierInput').value;
@@ -300,7 +304,7 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   .then(data => {
     alert(data.message);
     if (data.success) {
-      location.reload(); // reload only on success
+      location.reload();
     } else {
       submitButton.textContent = originalButtonText;
       submitButton.disabled = false;
@@ -314,7 +318,6 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
     isSubmitting = false;
   });
 });
-
 
   function searchPurchasesTable() {
     const input = document.getElementById("searchInput").value.toLowerCase();
@@ -380,17 +383,18 @@ function closePurchaseModal() {
 function editPurchase(id) {
   const row = document.querySelector(`#purchasesTable tbody tr[data-purchase-id='${id}']`);
 
-  const invoiceNumber = row.cells[0].textContent.trim(); // Invoice Number
-  const dateReceived = row.cells[1].textContent; // Date Received
-  const supplier = row.cells[2].textContent; // Supplier
-  const productText = row.cells[3].textContent; // Product Name
-  const dosage = row.cells[4].textContent; // Dosage
-  const batchNumber = row.cells[5].textContent; // Batch Number
-  const quantity = row.cells[6].textContent; // Quantity
-  const qtyPerBox = row.cells[7].textContent; // Qty per Box
-  const unit = row.cells[8].textContent; // Unit
-  const expiry = row.cells[9].textContent; // Expiration Date
-  const status = row.cells[10].textContent; // Status
+  const invoiceNumber = row.cells[0].textContent.trim();
+  const dateReceived = row.cells[1].textContent;
+  const supplier = row.cells[2].textContent;
+  const productText = row.cells[3].textContent;
+  const dosage = row.cells[4].textContent;
+  const batchNumber = row.cells[5].textContent;
+  const quantity = row.cells[6].textContent;
+  const qtyPerBox = row.cells[7].textContent;
+  const unit = row.cells[8].textContent;
+  const costingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0; // Get costing price
+  const expiry = row.cells[10].textContent;
+  const status = row.cells[11].textContent;
   const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
@@ -401,25 +405,21 @@ function editPurchase(id) {
 
   // Populate form fields
   form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
-  form.batch_number.value = batchNumber; // Populate batch number
-  
-  // Set product search field
+  form.batch_number.value = batchNumber;
   document.getElementById('productSearch').value = productText;
   document.getElementById('quantityPerBox').value = quantityPerBox;
+  document.getElementById('costingPrice').value = costingPrice.toFixed(2); // Set costing price
   
-  // Find the product ID from the data map
+  // Find product ID
   const productSearchValue = productText;
   let productId = '';
   
-  // Try to find exact match first
   if (productDataMap[productSearchValue]) {
     productId = productDataMap[productSearchValue].id;
   } else {
-    // Try partial match for editing existing records
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
-        // Update the display to show full product name
         document.getElementById('productSearch').value = key;
         break;
       }
@@ -433,7 +433,6 @@ function editPurchase(id) {
   
   // Set supplier dropdown
   const supplierSelect = form.supplier;
-  // Try to find the supplier in the options
   let found = false;
   for (let option of supplierSelect.options) {
     if (option.textContent === supplier) {
@@ -442,14 +441,12 @@ function editPurchase(id) {
       break;
     }
   }
-  // If supplier not found, select the first option (empty)
   if (!found) {
     supplierSelect.selectedIndex = 0;
   }
 
   openPurchaseModal();
 }
-
   
 function updatePurchaseProductInfo() {
   const productSearch = document.getElementById('productSearch');
@@ -585,6 +582,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
