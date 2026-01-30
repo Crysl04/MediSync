@@ -625,6 +625,23 @@ def add_purchase():
         if not batch_number:
             return jsonify({'success': False, 'message': 'Batch number is required'})
 
+        # Get product details including dosage and unit_name
+        c.execute("""
+            SELECT p.product_name, p.dosage, u.unit_name 
+            FROM Product p
+            LEFT JOIN Unit u ON p.unit_id = u.id
+            WHERE p.id = %s
+        """, (product_id,))
+        result = c.fetchone()
+        
+        if not result:
+            return jsonify({'success': False, 'message': 'Product not found'})
+        
+        # Extract the values properly
+        product_name = result[0]
+        dosage = result[1] if result[1] else ''
+        unit_name = result[2] if result[2] else ''
+
         # Check if batch number exists
         c.execute("""
             SELECT id FROM Purchase 
@@ -634,7 +651,7 @@ def add_purchase():
         if c.fetchone():
             return jsonify({'success': False, 'message': 'Batch number already exists for this product'})
 
-        # Insert purchase
+        # Insert purchase with costing_price
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
@@ -642,7 +659,7 @@ def add_purchase():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
               supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number, costing_price))
-        
+
         # Update product stock quantity
         c.execute("""
             UPDATE Product 
@@ -672,7 +689,6 @@ def add_purchase():
     finally:
         if conn:
             conn.close()
-
 # In the /edit-purchase route, update costing_price handling:
 @app.route('/edit-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
