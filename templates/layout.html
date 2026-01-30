@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchNotifications() {
-        const INTERVAL = 30 * 1000; // 30 seconds
+        const INTERVAL = 7200 * 1000; // 30 seconds
         const res = await fetch('{{ url_for("notification_json") }}');
         const data = await res.json();
 
@@ -420,8 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     fetchNotifications();
-    setInterval(fetchNotifications, 30000);
+    setInterval(fetchNotifications, 7200000);
 });
 </script>
+
 
 
