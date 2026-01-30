@@ -9,15 +9,19 @@
   <style>
     /* Dashboard-style notification popup */
     .notification-popup {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
+      position: fixed !important; 
+      bottom: 16px !important;
+      right: 16px !important;
+      top: auto !important;
+      left: auto !important;
       background: #fff3cd;
       border: 1px solid #ffeeba;
-      padding: 15px;
-      width: 300px;
-      border-radius: 8px;
-      box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+      padding: 10 12px;
+      width: 240px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.4;
+      box-shadow: 0px 3px 8px rgba(0,0,0,0.15);
       z-index: 9999;
     }
     .notification-popup.hidden { display: none; }
@@ -404,3 +408,4 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(fetchNotifications, 30000);
 });
 </script>
+
