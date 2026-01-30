@@ -389,6 +389,7 @@ def purchases():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
+        # Add costing_price to SELECT
         c.execute("""
         SELECT 
             pu.id, 
@@ -402,14 +403,16 @@ def purchases():
             pu.status, 
             pu.purchase_date,
             pu.supplier,
-            pu.invoice_number
+            pu.invoice_number,
+            pu.quantity_per_box,
+            pu.costing_price  -- NEW: Add costing price
         FROM Purchase pu
         LEFT JOIN Product pr ON pu.product_id = pr.id
         ORDER BY pu.purchase_date DESC
     """)
         purchases = c.fetchall()
         
-        # Get products with dosage and unit for dropdown
+        # Get products
         c.execute("""
             SELECT p.id, p.product_name, p.dosage, u.unit_name
             FROM Product p
@@ -418,7 +421,6 @@ def purchases():
         """)
         products = c.fetchall()
         
-        # Your specific supplier list
         suppliers = [
             "Medicines", "Regimed Pharmaceutical", "Meedpharma Medical Supplies and Equipt.",
             "Bansan Pharma", "Greencore Pharma Corp.", "Federal Pharmaceutical Inc.",
@@ -436,7 +438,8 @@ def purchases():
     finally:
         if conn is not None:
             conn.close()
-            
+
+# Update the /orders route to include selling_price in SELECT:
 @app.route('/orders')
 @login_required
 def orders():
@@ -447,16 +450,16 @@ def orders():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
-        # Now using stored unit_name, dosage, and quantity_per_box from Order table
         c.execute("""
             SELECT o.order_id, o.product_name, o.order_quantity, o.batch_number, 
-                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage, o.quantity_per_box
+                   o.order_date, o.customer, o.invoice_number, o.unit_name, o.dosage, 
+                   o.quantity_per_box, o.selling_price  
             FROM "Order" o
             ORDER BY o.order_date DESC
         """)
         orders = c.fetchall()
         
-        # Get invoice data from purchase table, not order table
+        # Get invoice data
         c.execute("""
             SELECT DISTINCT pu.invoice_number, pr.product_name, pr.dosage, u.unit_name
             FROM purchase pu
@@ -467,7 +470,6 @@ def orders():
         """)
         invoice_data = c.fetchall()
         
-        # Your specific customer list
         customers = [
             "LGU-Sibagat, ADS", "DOPMH, Patin-ay, ADS", "LGU-Patin-ay, ADS",
             "LGU-Esperanza, ADS", "LGU-Prosperidad, ADS", "LGU-Talacogon, ADS",
@@ -617,12 +619,13 @@ def add_purchase():
         expiration_date = request.form['expiration_date']
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
-        batch_number = request.form.get('batch_number', '')  # Get batch number from form
+        batch_number = request.form.get('batch_number', '')
+        costing_price = float(request.form.get('costing_price', 0))  # NEW: Get costing price
 
         if not batch_number:
             return jsonify({'success': False, 'message': 'Batch number is required'})
 
-        # Get product name, dosage, and unit_name from product table
+        # Get product details
         c.execute("""
             SELECT p.product_name, p.dosage, u.unit_name 
             FROM Product p
@@ -638,7 +641,7 @@ def add_purchase():
         dosage = dosage if dosage else ''
         unit_name = unit_name if unit_name else ''
 
-        # Check if batch number already exists for this product
+        # Check if batch number exists
         c.execute("""
             SELECT id FROM Purchase 
             WHERE product_id = %s AND batch_number = %s
@@ -647,16 +650,17 @@ def add_purchase():
         if c.fetchone():
             return jsonify({'success': False, 'message': 'Batch number already exists for this product'})
 
+        # Insert purchase with costing_price
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
-             supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number, costing_price)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
-              supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number))
+              supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number, costing_price))
 
         conn.commit()
-        log_activity(session['username'], f"Added purchase: product_id {product_id}, batch {batch_number}, qty {purchase_quantity}")
+        log_activity(session['username'], f"Added purchase: product_id {product_id}, batch {batch_number}")
 
         return jsonify({'success': True, 'message': 'Purchase added successfully!'})
     except Exception as e:
@@ -667,6 +671,7 @@ def add_purchase():
         if conn:
             conn.close()
 
+# In the /edit-purchase route, update costing_price handling:
 @app.route('/edit-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
 def edit_purchase(purchase_id):
@@ -675,7 +680,8 @@ def edit_purchase(purchase_id):
     quantity_per_box = int(request.form.get('quantity_per_box', 1))
     expiration_date = request.form['expiration_date']
     invoice_number = request.form.get('invoice_number', '')
-    new_batch_number = request.form.get('batch_number', '')  # Get new batch number from form
+    new_batch_number = request.form.get('batch_number', '')
+    costing_price = float(request.form.get('costing_price', 0))  # NEW: Get costing price
 
     if not new_batch_number:
         return jsonify({'success': False, 'message': 'Batch number is required'})
@@ -689,7 +695,7 @@ def edit_purchase(purchase_id):
         c.execute("SELECT batch_number FROM Purchase WHERE id = %s", (purchase_id,))
         old_batch_number = c.fetchone()[0]
 
-        # Check if new batch number already exists for this product (if changed)
+        # Check if new batch number exists
         if new_batch_number != old_batch_number:
             c.execute("""
                 SELECT id FROM Purchase 
@@ -706,7 +712,7 @@ def edit_purchase(purchase_id):
 
         new_remaining_quantity = max(new_purchase_quantity - total_ordered_quantity, 0)
 
-        # Get unit_name and dosage from product table
+        # Get unit and dosage
         c.execute("""
             SELECT p.dosage, u.unit_name 
             FROM Product p
@@ -717,17 +723,17 @@ def edit_purchase(purchase_id):
         dosage = result[0] if result else ''
         unit_name = result[1] if result else ''
 
-        # Update purchase with new batch number
+        # Update purchase with costing_price
         c.execute("""UPDATE Purchase
                      SET product_id=%s, purchase_quantity=%s, remaining_quantity=%s, 
                          expiration_date=%s, invoice_number=%s, unit_name=%s, dosage=%s, 
-                         quantity_per_box=%s, batch_number=%s
+                         quantity_per_box=%s, batch_number=%s, costing_price=%s
                      WHERE id=%s""",
                   (product_id, new_purchase_quantity, new_remaining_quantity, 
                    expiration_date, invoice_number, unit_name, dosage, 
-                   quantity_per_box, new_batch_number, purchase_id))
+                   quantity_per_box, new_batch_number, costing_price, purchase_id))
         
-        # Update orders with the new batch number if batch number changed
+        # Update orders if batch number changed
         if new_batch_number != old_batch_number:
             c.execute("""UPDATE "Order"
                          SET batch_number=%s
@@ -735,7 +741,7 @@ def edit_purchase(purchase_id):
                       (new_batch_number, product_id, old_batch_number))
         
         conn.commit()
-        log_activity(session['username'], f"Edited purchase ID {purchase_id}, batch {old_batch_number} to {new_batch_number}")
+        log_activity(session['username'], f"Edited purchase ID {purchase_id}")
 
         return jsonify({'success': True, 'message': "Purchase updated successfully!"})
     except Exception as e:
@@ -745,7 +751,7 @@ def edit_purchase(purchase_id):
     finally:
         if conn:
             conn.close()
-
+            
 @app.route('/delete-purchase/<int:purchase_id>', methods=['POST'])
 @login_required
 def delete_purchase(purchase_id):
@@ -836,11 +842,11 @@ def add_order():
     quantity_per_box = int(data.get('quantity_per_box', 1))
     order_quantity = int(data.get('order_quantity', 0))
     customer = data.get('customer')
+    selling_price = float(data.get('selling_price', 0))  # NEW: Get selling price
 
-    print(f"DEBUG: /add-order called with: invoice={invoice_number}, product_id={product_id}, batch={batch_number}, qty={order_quantity}")
+    print(f"DEBUG: /add-order called with selling_price: {selling_price}")
 
     if not invoice_number or not product_id or not batch_number or order_quantity <= 0 or not customer:
-        print(f"DEBUG: Validation failed")
         return jsonify({'success': False, 'message': 'Invalid input'}), 400
 
     conn = None
@@ -848,7 +854,7 @@ def add_order():
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
         
-        # Get purchase details for validation
+        # Get purchase details
         c.execute("""
             SELECT pu.id, pu.remaining_quantity
             FROM purchase pu
@@ -858,40 +864,33 @@ def add_order():
         purchase_info = c.fetchone()
         
         if not purchase_info:
-            print(f"DEBUG: Purchase not found")
             return jsonify({'success': False, 'message': 'Invalid invoice number, product, or batch'})
         
         purchase_id, remaining_quantity = purchase_info
-        print(f"DEBUG: Purchase found: id={purchase_id}, remaining={remaining_quantity}")
         
         if remaining_quantity < order_quantity:
-            print(f"DEBUG: Not enough stock: {remaining_quantity} < {order_quantity}")
             return jsonify({'success': False, 'message': f'Not enough stock. Available: {remaining_quantity}'})
 
-        print(f"DEBUG: Inserting order...")
-        # Insert order with all details including quantity_per_box
+        # Insert order with selling_price
         c.execute("""
             INSERT INTO "Order" 
             (product_id, product_name, order_quantity, batch_number, 
-             customer, invoice_number, unit_name, dosage, quantity_per_box)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             customer, invoice_number, unit_name, dosage, quantity_per_box, selling_price)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, product_name, order_quantity, batch_number, 
-              customer, invoice_number, unit_name, dosage, quantity_per_box))
+              customer, invoice_number, unit_name, dosage, quantity_per_box, selling_price))
         
-        print(f"DEBUG: Updating purchase remaining quantity...")
-        # Update remaining quantity in purchase
+        # Update purchase remaining quantity
         c.execute("""UPDATE Purchase
                      SET remaining_quantity = remaining_quantity - %s
                      WHERE id=%s""",
                   (order_quantity, purchase_id))
 
         conn.commit()
-        log_activity(session['username'], f"Added order: invoice {invoice_number}, product {product_name}, batch {batch_number}, qty {order_quantity}, qty/box {quantity_per_box}")
+        log_activity(session['username'], f"Added order: invoice {invoice_number}, selling price {selling_price}")
 
-        print(f"DEBUG: Order added successfully")
         return jsonify({'success': True, 'message': 'Order added successfully!'})
     except Exception as e:
-        print(f"DEBUG: Error: {str(e)}")
         if conn:
             conn.rollback()
         return jsonify({'success': False, 'message': f'Error adding order: {str(e)}'})
@@ -908,13 +907,14 @@ def edit_order(order_id):
     batch_number = data.get('batch_number')
     quantity_per_box = int(data.get('quantity_per_box', 1))
     new_quantity = int(data.get('order_quantity'))
+    selling_price = float(data.get('selling_price', 0))  # NEW: Get selling price
 
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
         c = conn.cursor()
 
-        # Get old order info including the old invoice number and batch
+        # Get old order info
         c.execute('SELECT product_id, batch_number, order_quantity, invoice_number FROM "Order" WHERE order_id=%s', (order_id,))
         old_order = c.fetchone()
         if not old_order:
@@ -924,17 +924,13 @@ def edit_order(order_id):
 
         # Check if invoice number or product/batch changed
         if old_invoice != invoice_number or old_product_id != product_id or old_batch != batch_number:
-            # If anything changed, we need to:
-            # 1. Add back old quantity to old purchase
-            # 2. Deduct new quantity from new purchase
-            
             # Add back old quantity to old purchase
             c.execute("""UPDATE Purchase
                          SET remaining_quantity = remaining_quantity + %s
                          WHERE invoice_number=%s AND product_id=%s AND batch_number=%s""",
                       (old_quantity, old_invoice, old_product_id, old_batch))
             
-            # Get new purchase info for validation
+            # Get new purchase info
             c.execute("""
                 SELECT id, remaining_quantity 
                 FROM purchase 
@@ -947,38 +943,37 @@ def edit_order(order_id):
             
             new_purchase_id, remaining_quantity = new_purchase_info
             
-            # Check if new purchase has enough stock
+            # Check stock
             if remaining_quantity < new_quantity:
                 return jsonify({'success': False, 'message': f'Not enough stock in new selection. Available: {remaining_quantity}'})
             
-            # Deduct new quantity from new purchase
+            # Deduct new quantity
             c.execute("""UPDATE Purchase
                          SET remaining_quantity = remaining_quantity - %s
                          WHERE id=%s""",
                       (new_quantity, new_purchase_id))
             
-            # Update order with new details including quantity_per_box
+            # Update order with selling_price
             customer = data.get('customer')
-            # Get product name for the new product
             c.execute("SELECT product_name FROM product WHERE id = %s", (product_id,))
             product_result = c.fetchone()
             product_name = product_result[0] if product_result else ""
             
             c.execute("""
                 UPDATE "Order"
-                SET product_id=%s, product_name=%s, batch_number=%s, order_quantity=%s, customer=%s, invoice_number=%s, quantity_per_box=%s
+                SET product_id=%s, product_name=%s, batch_number=%s, order_quantity=%s, 
+                    customer=%s, invoice_number=%s, quantity_per_box=%s, selling_price=%s
                 WHERE order_id=%s
-            """, (product_id, product_name, batch_number, new_quantity, customer, invoice_number, quantity_per_box, order_id))
+            """, (product_id, product_name, batch_number, new_quantity, customer, invoice_number, quantity_per_box, selling_price, order_id))
             
         else:
-            # Same invoice and product/batch - adjust quantity in the same purchase
-            # First, add back the old quantity
+            # Same invoice and product/batch
             c.execute("""UPDATE Purchase
                          SET remaining_quantity = remaining_quantity + %s
                          WHERE invoice_number=%s AND product_id=%s AND batch_number=%s""",
                       (old_quantity, invoice_number, product_id, batch_number))
             
-            # Get current remaining after adding back old quantity
+            # Get current remaining
             c.execute("""
                 SELECT remaining_quantity 
                 FROM purchase 
@@ -991,23 +986,23 @@ def edit_order(order_id):
             
             current_remaining = purchase_info[0]
             
-            # Check if there's enough stock for the new quantity
+            # Check stock
             if current_remaining < new_quantity:
-                return jsonify({'success': False, 'message': f'Not enough stock. Available after returning old quantity: {current_remaining}'})
+                return jsonify({'success': False, 'message': f'Not enough stock. Available: {current_remaining}'})
             
-            # Deduct the new quantity
+            # Deduct new quantity
             c.execute("""UPDATE Purchase
                          SET remaining_quantity = remaining_quantity - %s
                          WHERE invoice_number=%s AND product_id=%s AND batch_number=%s""",
                       (new_quantity, invoice_number, product_id, batch_number))
             
-            # Update order with new quantity and quantity_per_box
+            # Update order with selling_price
             customer = data.get('customer')
             c.execute("""
                 UPDATE "Order"
-                SET order_quantity=%s, customer=%s, quantity_per_box=%s
+                SET order_quantity=%s, customer=%s, quantity_per_box=%s, selling_price=%s
                 WHERE order_id=%s
-            """, (new_quantity, customer, quantity_per_box, order_id))
+            """, (new_quantity, customer, quantity_per_box, selling_price, order_id))
 
         conn.commit()
         log_activity(session['username'], f"Edited order ID {order_id}")
