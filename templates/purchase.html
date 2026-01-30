@@ -114,7 +114,7 @@
 </datalist>
 
 <!-- Add dosage and unit display fields to purchase modal -->
-<div id="purchaseModal" class="modal" style="display:none; position:fixed; z-index:1000; inset:0; align-items:center; justify-content:center; background:rgba(0,0,0,0.4);">
+<div id="purchaseModal" class="modal">
   <div style="background:#fff; padding:28px 32px; border-radius:10px; width:760px; max-width:95vw; font-size:14px;">
 
     <h2 id="modalTitle" style="font-size: 18px;">Add Purchase</h2>
@@ -237,6 +237,20 @@
   
   .product-invalid {
     border-color: #ff4444 !important;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;                 /* hidden by default */
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal.show {
+    display: flex;                 /* only shows when opened */
   }
 </style>
 
@@ -604,6 +618,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
