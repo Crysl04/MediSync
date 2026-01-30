@@ -401,31 +401,37 @@ function editPurchase(id) {
   const quantity = row.cells[6].textContent;
   const qtyPerBox = row.cells[7].textContent;
   const unit = row.cells[8].textContent;
-  const costingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0; // Get costing price
+  const costingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0;
   const expiry = row.cells[10].textContent;
   const status = row.cells[11].textContent;
-  const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
   form.action = '/edit-purchase/' + id;
 
   document.getElementById("modalTitle").textContent = "Edit Purchase";
-  document.getElementById("modalSubmit").textContent = "Update";
-
-  // Populate form fields
-  form.invoice_number.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
-  form.batch_number.value = batchNumber;
-  document.getElementById('productSearch').value = productText;
-  document.getElementById('quantityPerBox').value = quantityPerBox;
-  document.getElementById('costingPrice').value = costingPrice.toFixed(2); // Set costing price
   
-  // Find product ID
-  const productSearchValue = productText;
+  // Populate form fields correctly
+  form.elements['invoice_number'].value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
+  form.elements['batch_number'].value = batchNumber;
+  document.getElementById('productSearch').value = productText;
+  
+  // Set quantity_per_box - FIXED: using form.elements instead of getElementById
+  form.elements['quantity_per_box'].value = qtyPerBox;
+  
+  // Set costing_price - FIXED: using form.elements instead of getElementById
+  form.elements['costing_price'].value = costingPrice.toFixed(2);
+  
+  form.elements['purchase_quantity'].value = quantity;
+  form.elements['expiration_date'].value = expiry;
+  
+  // Find product ID from productDataMap
+  const fullProductString = productText + (dosage ? ' - ' + dosage : '') + ' (' + unit + ')';
   let productId = '';
   
-  if (productDataMap[productSearchValue]) {
-    productId = productDataMap[productSearchValue].id;
+  if (productDataMap[fullProductString]) {
+    productId = productDataMap[fullProductString].id;
   } else {
+    // Try to find a match
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
@@ -435,13 +441,10 @@ function editPurchase(id) {
     }
   }
   
-  document.getElementById('productIdInput').value = productId;
-  
-  form.purchase_quantity.value = quantity;
-  form.expiration_date.value = expiry;
+   document.getElementById('productIdInput').value = productId;
   
   // Set supplier dropdown
-  const supplierSelect = form.supplier;
+  const supplierSelect = form.elements['supplier'];
   let found = false;
   for (let option of supplierSelect.options) {
     if (option.textContent === supplier) {
@@ -450,7 +453,12 @@ function editPurchase(id) {
       break;
     }
   }
-  if (!found) {
+  if (!found && supplier.trim() !== '') {
+    // If supplier is not in the list, set to "Other" and fill the other field
+    supplierSelect.value = '__other__';
+    document.getElementById('otherSupplierInput').value = supplier;
+    toggleOtherSupplier();
+  } else if (!found) {
     supplierSelect.selectedIndex = 0;
   }
 
@@ -591,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
