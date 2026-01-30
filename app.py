@@ -620,26 +620,10 @@ def add_purchase():
         supplier = request.form['supplier']
         invoice_number = request.form.get('invoice_number', '')
         batch_number = request.form.get('batch_number', '')
-        costing_price = float(request.form.get('costing_price', 0))  # NEW: Get costing price
+        costing_price = float(request.form.get('costing_price', 0))
 
         if not batch_number:
             return jsonify({'success': False, 'message': 'Batch number is required'})
-
-        # Get product details
-        c.execute("""
-            SELECT p.product_name, p.dosage, u.unit_name 
-            FROM Product p
-            LEFT JOIN Unit u ON p.unit_id = u.id
-            WHERE p.id = %s
-        """, (product_id,))
-        result = c.fetchone()
-        
-        if not result:
-            return jsonify({'success': False, 'message': 'Product not found'})
-            
-        product_name, dosage, unit_name = result
-        dosage = dosage if dosage else ''
-        unit_name = unit_name if unit_name else ''
 
         # Check if batch number exists
         c.execute("""
@@ -650,7 +634,7 @@ def add_purchase():
         if c.fetchone():
             return jsonify({'success': False, 'message': 'Batch number already exists for this product'})
 
-        # Insert purchase with costing_price
+        # Insert purchase
         c.execute("""
             INSERT INTO Purchase 
             (product_id, purchase_quantity, remaining_quantity, expiration_date, 
@@ -658,6 +642,24 @@ def add_purchase():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (product_id, purchase_quantity, purchase_quantity, expiration_date, 
               supplier, invoice_number, unit_name, dosage, quantity_per_box, batch_number, costing_price))
+        
+        # Update product stock quantity
+        c.execute("""
+            UPDATE Product 
+            SET stock_quantity = stock_quantity + %s
+            WHERE id = %s
+        """, (purchase_quantity, product_id))
+        
+        # Update stock status
+        c.execute("""
+            UPDATE Product 
+            SET stock_status = CASE
+                WHEN stock_quantity <= 0 THEN 'out of stock'
+                WHEN stock_quantity <= 10 THEN 'low stock'
+                ELSE 'in stock'
+            END
+            WHERE id = %s
+        """, (product_id,))
 
         conn.commit()
         log_activity(session['username'], f"Added purchase: product_id {product_id}, batch {batch_number}")
@@ -760,24 +762,58 @@ def delete_purchase(purchase_id):
         conn = psycopg2.connect(DATABASE_URL)
 
         c = conn.cursor()
-        c.execute("SELECT product_id, batch_number FROM Purchase WHERE id = %s", (purchase_id,))
+        
+        # Get purchase details before deleting
+        c.execute("""
+            SELECT product_id, purchase_quantity, remaining_quantity 
+            FROM Purchase 
+            WHERE id = %s
+        """, (purchase_id,))
         result = c.fetchone()
+        
         if not result:
             return jsonify({'success': False, 'message': 'Purchase not found.'})
 
-        product_id, batch_number = result
-        c.execute("""SELECT COUNT(*) FROM "Order" WHERE product_id=%s AND batch_number=%s""",
-                  (product_id, batch_number))
+        product_id, purchase_quantity, remaining_quantity = result
+        
+        # Check if there are orders referencing this purchase
+        c.execute("""
+            SELECT COUNT(*) FROM "Order" 
+            WHERE product_id=%s AND batch_number IN (
+                SELECT batch_number FROM Purchase WHERE id=%s
+            )
+        """, (product_id, purchase_id))
         count = c.fetchone()[0]
 
         if count > 0:
             return jsonify({'success': False, 'message': "Couldn't delete purchase, being referenced with orders."})
 
+        # Delete the purchase
         c.execute("DELETE FROM Purchase WHERE id = %s", (purchase_id,))
-        conn.commit()
-        log_activity(session['username'], f"Deleted stock-in ID {purchase_id}")
+        
+        # Update product stock quantity
+        # Subtract the purchase quantity from product stock
+        c.execute("""
+            UPDATE Product 
+            SET stock_quantity = GREATEST(stock_quantity - %s, 0)
+            WHERE id = %s
+        """, (purchase_quantity, product_id))
+        
+        # Update stock status after quantity change
+        c.execute("""
+            UPDATE Product 
+            SET stock_status = CASE
+                WHEN stock_quantity <= 0 THEN 'out of stock'
+                WHEN stock_quantity <= 10 THEN 'low stock'
+                ELSE 'in stock'
+            END
+            WHERE id = %s
+        """, (product_id,))
 
-        return jsonify({'success': True, 'message': "Purchase deleted successfully!"})
+        conn.commit()
+        log_activity(session['username'], f"Deleted purchase ID {purchase_id}")
+
+        return jsonify({'success': True, 'message': "Purchase deleted successfully and product stock updated!"})
     except Exception as e:
         if conn:
             conn.rollback()
@@ -785,7 +821,6 @@ def delete_purchase(purchase_id):
     finally:
         if conn:
             conn.close()
-
 @app.route('/get-products-by-invoice/<invoice_number>')
 @login_required
 def get_products_by_invoice(invoice_number):
