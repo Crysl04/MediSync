@@ -225,6 +225,20 @@
   .product-invalid {
     border-color: #ff4444 !important;
   }
+
+  .modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: none;                 /* hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal.show {
+  display: flex;                 /* only shows when opened */
+}
 </style>
 
 <script>
@@ -362,23 +376,27 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   });
 }
   
-  function openPurchaseModal() {
-  document.getElementById("purchaseModal").style.display = "block";
-  
+function openPurchaseModal() {
+  document.getElementById("purchaseModal").classList.add("show");
   // Reset form if it's for adding new purchase
   const form = document.getElementById("purchaseForm");
   if (form.action.endsWith('/add-purchase')) {
     form.reset();
     document.getElementById("modalTitle").textContent = "Add Purchase";
-    document.getElementById("modalSubmit").textContent = "Add";
     document.getElementById('productIdInput').value = '';
     document.getElementById('productSearch').value = '';
     document.getElementById('productSearch').classList.remove('product-invalid');
+    // Reset supplier dropdown
+    form.elements['supplier'].selectedIndex = 0;
+    toggleOtherSupplier();
   }
+  
+  // Show the modal
+  document.getElementById("purchaseModal").style.display = "block";
 }
 
 function closePurchaseModal() {
-  document.getElementById("purchaseModal").style.display = "none";
+  document.getElementById("purchaseModal").classList.remove("show");
   // Reset form when closing modal
   const form = document.getElementById("purchaseForm");
   form.reset();
@@ -404,34 +422,29 @@ function editPurchase(id) {
   const costingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0;
   const expiry = row.cells[10].textContent;
   const status = row.cells[11].textContent;
+  const quantityPerBox = row.getAttribute('data-quantity-per-box') || '1';
 
   const form = document.getElementById("purchaseForm");
   form.action = '/edit-purchase/' + id;
 
   document.getElementById("modalTitle").textContent = "Edit Purchase";
   
-  // Populate form fields correctly
+  // Populate form fields - FIXED: using form.elements[]
   form.elements['invoice_number'].value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
   form.elements['batch_number'].value = batchNumber;
   document.getElementById('productSearch').value = productText;
-  
-  // Set quantity_per_box - FIXED: using form.elements instead of getElementById
   form.elements['quantity_per_box'].value = qtyPerBox;
-  
-  // Set costing_price - FIXED: using form.elements instead of getElementById
   form.elements['costing_price'].value = costingPrice.toFixed(2);
-  
   form.elements['purchase_quantity'].value = quantity;
   form.elements['expiration_date'].value = expiry;
   
-  // Find product ID from productDataMap
-  const fullProductString = productText + (dosage ? ' - ' + dosage : '') + ' (' + unit + ')';
+  // Find product ID
+  const productSearchValue = productText + (dosage ? ' - ' + dosage : '') + ' (' + unit + ')';
   let productId = '';
   
-  if (productDataMap[fullProductString]) {
-    productId = productDataMap[fullProductString].id;
+  if (productDataMap[productSearchValue]) {
+    productId = productDataMap[productSearchValue].id;
   } else {
-    // Try to find a match
     for (const [key, value] of Object.entries(productDataMap)) {
       if (key.includes(productText)) {
         productId = value.id;
@@ -441,7 +454,7 @@ function editPurchase(id) {
     }
   }
   
-   document.getElementById('productIdInput').value = productId;
+  document.getElementById('productIdInput').value = productId;
   
   // Set supplier dropdown
   const supplierSelect = form.elements['supplier'];
@@ -454,7 +467,6 @@ function editPurchase(id) {
     }
   }
   if (!found && supplier.trim() !== '') {
-    // If supplier is not in the list, set to "Other" and fill the other field
     supplierSelect.value = '__other__';
     document.getElementById('otherSupplierInput').value = supplier;
     toggleOtherSupplier();
@@ -462,7 +474,8 @@ function editPurchase(id) {
     supplierSelect.selectedIndex = 0;
   }
 
-  openPurchaseModal();
+  // Show the modal
+  document.getElementById("purchaseModal").style.display = "block";
 }
   
 function updatePurchaseProductInfo() {
@@ -599,6 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
