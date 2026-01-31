@@ -227,17 +227,17 @@
   }
 
   .modal {
+  display: none; /* Hidden by default */
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.4);
-  display: none;                 /* hidden by default */
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
 .modal.show {
-  display: flex;                 /* only shows when opened */
+  display: flex; /* Show when class is added */
 }
 </style>
 
@@ -378,6 +378,11 @@ document.getElementById("purchaseForm").addEventListener("submit", function(e) {
   
 function openPurchaseModal() {
   document.getElementById("purchaseModal").classList.add("show");
+  const modal = document.getElementById("purchaseModal");
+  // Use the CSS class approach consistently
+  modal.classList.add("show");
+  modal.style.display = "flex"; // Use flex instead of block to match CSS
+  
   // Reset form if it's for adding new purchase
   const form = document.getElementById("purchaseForm");
   if (form.action.endsWith('/add-purchase')) {
@@ -397,6 +402,12 @@ function openPurchaseModal() {
 
 function closePurchaseModal() {
   document.getElementById("purchaseModal").classList.remove("show");
+  const modal = document.getElementById("purchaseModal");
+  // Remove the show class
+  modal.classList.remove("show");
+  // Also set display to none to ensure it's hidden
+  modal.style.display = "none";
+  
   // Reset form when closing modal
   const form = document.getElementById("purchaseForm");
   form.reset();
@@ -405,6 +416,12 @@ function closePurchaseModal() {
   document.getElementById('productSearch').classList.remove('product-invalid');
   // Reset form action to add-purchase for next time
   form.action = '/add-purchase';
+  // Reset supplier dropdown
+  const supplierSelect = document.getElementById('supplierSelect');
+  if (supplierSelect) {
+    supplierSelect.selectedIndex = 0;
+    toggleOtherSupplier();
+  }
 }
   
 function editPurchase(id) {
@@ -612,6 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
