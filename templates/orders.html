@@ -64,14 +64,15 @@
                 data-invoice="{{ order[6] }}"
                 data-quantity="{{ order[2] }}" 
                 data-date="{{ order[4] }}" 
-                data-customer="{{ order[5] }}">
+                data-customer="{{ order[5] }}"
+                data-qty-per-box="{{ order[9] }}">
               <td>{{ order[6] if order[6] else 'N/A' }}</td> <!-- Invoice Number -->
               <td>{{ order[4] }}</td> <!-- Order Date -->
               <td>{{ order[5] }}</td> <!-- Customer -->
               <td>{{ order[1] }}</td> <!-- Product Name -->
               <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
               <td>{{ order[2] }}</td> <!-- Quantity -->
-              <td>{{ order[3] }}</td> <!-- Batch Number (NEW) -->
+              <td>{{ order[3] }}</td> <!-- Batch Number -->
               <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
               <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
               <td>₱{{ "%.2f"|format(order[10]) if order[10] else '0.00' }}</td> <!-- Selling Price -->
@@ -83,7 +84,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="11" style="text-align: center;">No orders found</td> <!-- Updated colspan -->
+            <td colspan="11" style="text-align: center;">No orders found</td> 
           </tr>
         {% endif %}
       </tbody>
@@ -227,8 +228,8 @@
         <div>
           <h4>Order Details</h4>
     
-          <label>Order Invoice Number:</label>
-          <input type="text" name="order_invoice" id="editOrderInvoice" required>
+          <label>Invoice Number:</label>   <!-- key must be 'invoice_number' for backend -->
+          <input type="text" name="invoice_number" id="editOrderInvoice" required>
     
           <label>Product:</label>
           <input type="text" id="editProductSearch" list="productsDatalist"
@@ -400,24 +401,27 @@ function editOrderRow(orderId) {
   const invoice = row.getAttribute('data-invoice');
   const quantity = row.getAttribute('data-quantity');
   const customer = row.getAttribute('data-customer');
-  const sellingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0; // Index adjusted for new column
+  const qtyPerBox = row.getAttribute('data-qty-per-box') || '1';
+  const sellingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0; // index 9 = selling price
 
   // Set basic fields
   document.getElementById('editOrderId').value = orderId;
-  document.getElementById('editOrderInvoice').value = invoice;
+  document.getElementById('editOrderInvoice').value = invoice;   // invoice_number input
   document.getElementById('editOrderQuantity').value = quantity;
   document.getElementById('editSellingPrice').value = sellingPrice.toFixed(2);
 
+  // Store qtyPerBox in a hidden attribute for later use
+  document.getElementById('editOrderForm').setAttribute('data-qty-per-box', qtyPerBox);
+
   // Set product search field
   const productDetails = productDetailsMap[productId] || { dosage: '', unit: '' };
-  const productSelect = document.getElementById('editProductSearch');
-  // Try to reconstruct the search text from product data
   const productOption = Object.keys(productDataMap).find(key => productDataMap[key].id == productId);
+  const productSearch = document.getElementById('editProductSearch');
   if (productOption) {
-    productSelect.value = productOption;
+    productSearch.value = productOption;
   } else {
     // Fallback: use product name from row
-    productSelect.value = row.cells[3].textContent; // product name column
+    productSearch.value = row.cells[3].textContent; // product name column
   }
   document.getElementById('editProductIdInput').value = productId;
   const stock = productStockMap[productId] || 0;
@@ -582,12 +586,14 @@ function setupFormHandlers() {
     e.preventDefault();
 
     const orderId = document.getElementById('editOrderId').value;
-    const orderInvoice = document.getElementById('editOrderInvoice').value.trim();
+    const invoiceNumber = document.getElementById('editOrderInvoice').value.trim();  // key: invoice_number
     const productId = document.getElementById('editProductIdInput').value;
     const batchSelect = document.getElementById('editBatchSelect');
     const batchNumber = batchSelect.value;
     const quantity = parseInt(document.getElementById('editOrderQuantity').value);
     const sellingPrice = parseFloat(document.getElementById('editSellingPrice').value);
+    const qtyPerBox = this.getAttribute('data-qty-per-box') || '1';  // from original order
+
     let customer = document.getElementById('editCustomer').value;
     if (customer === '__other__') {
       customer = document.getElementById('editOtherCustomerInput').value.trim();
@@ -597,7 +603,7 @@ function setupFormHandlers() {
       }
     }
 
-    if (!orderId || !orderInvoice || !productId || !batchNumber || !quantity || !customer) {
+    if (!orderId || !invoiceNumber || !productId || !batchNumber || !quantity || !customer) {
       alert('Please fill all fields correctly.');
       return;
     }
@@ -623,12 +629,13 @@ function setupFormHandlers() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        order_invoice: orderInvoice,
+        invoice_number: invoiceNumber,    // must match backend key
         product_id: productId,
         batch_number: batchNumber,
         order_quantity: quantity,
         customer: customer,
-        selling_price: sellingPrice
+        selling_price: sellingPrice,
+        quantity_per_box: parseInt(qtyPerBox)
       })
     })
     .then(res => res.json())
