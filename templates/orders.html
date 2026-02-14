@@ -25,7 +25,6 @@
       </button>
       <div id="orderFilterOptions" class="filter-options" style="display: none;">
         <div class="filter-group">
-          <!-- Change "Batch Number" to "Invoice Number" -->
           <label>Invoice Number:</label>
           <input type="text" id="invoiceFilter" placeholder="Enter invoice number..." />
         </div>
@@ -59,6 +58,8 @@
         {% if orders %}
           {% for order in orders %}
             <tr data-order-id="{{ order[0] }}" 
+                data-product-id="{{ order[11] }}"
+                data-batch="{{ order[3] }}"
                 data-invoice="{{ order[6] }}"
                 data-quantity="{{ order[2] }}" 
                 data-date="{{ order[4] }}" 
@@ -93,26 +94,23 @@
     font-size: 13px; 
   }
   
- 
   .orders-table th {
-    font-size: 12px; /* Smaller headers */
-    padding: 6px 8px; /* Adjust padding */
+    font-size: 12px;
+    padding: 6px 8px;
   }
   
-  /* Make table cells smaller */
   .orders-table td {
-    font-size: 13px; /* Smaller text */
-    padding: 6px 8px; /* Adjust padding */
+    font-size: 13px;
+    padding: 6px 8px;
   }
   
-  /* Make action buttons smaller */
   td button {
     margin: 1px;
     padding: 3px 6px;
     border: none;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 11px; /* Smaller button text */
+    font-size: 11px;
   }
   
   td button:first-child {
@@ -130,7 +128,6 @@
     max-width: none;
   }
   
-  /* Keep action buttons always visible */
   .orders-table td:last-child {
     white-space: nowrap;
     max-width: none;
@@ -138,48 +135,48 @@
   }
 </style>
 
-<!-- Invoice Number Datalist (for both modals) -->
-<datalist id="invoiceNumbersList">
-  {% for inv in invoice_data %}
-    <option value="{{ inv[0] }}" 
-            data-product="{{ inv[1] }}" 
-            data-dosage="{{ inv[2] if inv[2] else '' }}" 
-            data-unit="{{ inv[3] if inv[3] else '' }}">
-      {{ inv[0] }} - {{ inv[1] }}{% if inv[2] %} ({{ inv[2] }}){% endif %}
-    </option>
-  {% endfor %}
-</datalist>
-
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
   <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
     <h2>Add Order</h2>
     <form id="addOrderForm">
-      <label>Invoice Number:</label><br>
-      <input type="text" name="invoice_number" id="addInvoiceNumber" 
-             list="invoiceNumbersList" 
-             placeholder="Type to search invoice numbers..." 
-             autocomplete="off"
-             required>
+      <label>Order Invoice Number:</label><br>
+      <input type="text" name="order_invoice" id="addOrderInvoice" required>
       <br><br>
 
-      <!-- Product selection dropdown -->
-      <div id="addProductSelectGroup" style="display:none;">
-        <label>Select Product:</label><br>
-        <select name="product_id" id="addProductSelect" required>
-          <option value="">Select a product</option>
+      <label>Product:</label><br>
+      <select name="product_id" id="addProductSelect" required>
+        <option value="">Select a product</option>
+        {% for prod in products %}
+          <option value="{{ prod[0] }}" 
+                  data-stock="{{ prod[4] }}"
+                  data-dosage="{{ prod[2] or '' }}"
+                  data-unit="{{ prod[3] or '' }}">
+            {{ prod[1] }}{% if prod[2] %} ({{ prod[2] }}){% endif %} [{{ prod[3] or 'N/A' }}]
+          </option>
+        {% endfor %}
+      </select>
+      <br><br>
+
+      <div id="addBatchGroup" style="display:none;">
+        <label>Batch Number:</label><br>
+        <select name="batch_number" id="addBatchSelect" required>
+          <option value="">Select a batch</option>
         </select>
         <br><br>
       </div>
 
-      <label>Available Quantity:</label><br>
-      <input type="text" id="addAvailableQty" readonly><br><br>
+      <label>Available Stock (total):</label><br>
+      <input type="text" id="addTotalStock" readonly>
+      <br><br>
 
       <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required><br><br>
+      <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required>
+      <br><br>
 
       <label>Selling Price (₱):</label><br>
-      <input type="number" name="selling_price" id="addSellingPrice" min="0" step="0.01" value="0.00"><br><br>
+      <input type="number" name="selling_price" id="addSellingPrice" min="0" step="0.01" value="0.00">
+      <br><br>
 
       <label>Customer:</label><br>
       <select name="customer" id="addCustomer" required>
@@ -209,31 +206,43 @@
     <form id="editOrderForm">
       <input type="hidden" name="order_id" id="editOrderId">
 
-      <label>Invoice Number:</label><br>
-      <input type="text" name="invoice_number" id="editInvoiceNumber" 
-             list="invoiceNumbersList" 
-             placeholder="Type to search invoice numbers..." 
-             autocomplete="off"
-             required>
+      <label>Order Invoice Number:</label><br>
+      <input type="text" name="order_invoice" id="editOrderInvoice" required>
       <br><br>
 
-      <!-- Product selection dropdown -->
-      <div id="editProductSelectGroup" style="display:none;">
-        <label>Select Product:</label><br>
-        <select name="product_id" id="editProductSelect" required>
-          <option value="">Select a product</option>
+      <label>Product:</label><br>
+      <select name="product_id" id="editProductSelect" required>
+        <option value="">Select a product</option>
+        {% for prod in products %}
+          <option value="{{ prod[0] }}" 
+                  data-stock="{{ prod[4] }}"
+                  data-dosage="{{ prod[2] or '' }}"
+                  data-unit="{{ prod[3] or '' }}">
+            {{ prod[1] }}{% if prod[2] %} ({{ prod[2] }}){% endif %} [{{ prod[3] or 'N/A' }}]
+          </option>
+        {% endfor %}
+      </select>
+      <br><br>
+
+      <div id="editBatchGroup" style="display:none;">
+        <label>Batch Number:</label><br>
+        <select name="batch_number" id="editBatchSelect" required>
+          <option value="">Select a batch</option>
         </select>
         <br><br>
       </div>
 
-      <label>Available Quantity:</label><br>
-      <input type="text" id="editAvailableQty" readonly><br><br>
+      <label>Available Stock (total):</label><br>
+      <input type="text" id="editTotalStock" readonly>
+      <br><br>
 
       <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required><br><br>
+      <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required>
+      <br><br>
 
       <label>Selling Price (₱):</label><br>
-      <input type="number" name="selling_price" id="editSellingPrice" min="0" step="0.01" value="0.00"><br><br>
+      <input type="number" name="selling_price" id="editSellingPrice" min="0" step="0.01" value="0.00">
+      <br><br>
 
       <label>Customer:</label><br>
       <select name="customer" id="editCustomer" required>
@@ -257,42 +266,61 @@
 </div>
 
 <script>
-// Create a map to store invoice data for quick lookup
-let invoiceDataMap = {};
-let currentProductsForAdd = [];
-let currentProductsForEdit = [];
+// Global variables
+let productStockMap = {};
 
-// Initialize everything when page loads
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   console.log("DOM Content Loaded - Initializing...");
+
+  // Build product stock map from the product select options (both modals share same products)
+  const productSelectAdd = document.getElementById('addProductSelect');
+  const productSelectEdit = document.getElementById('editProductSelect');
   
-  // Get all options from the datalist
-  const datalist = document.getElementById('invoiceNumbersList');
-  const options = datalist ? datalist.querySelectorAll('option') : [];
-  
-  // Populate the invoice data map
-  options.forEach(option => {
-    invoiceDataMap[option.value] = {
-      product: option.getAttribute('data-product'),
-      dosage: option.getAttribute('data-dosage'),
-      unit: option.getAttribute('data-unit')
-    };
+  [productSelectAdd, productSelectEdit].forEach(select => {
+    if (select) {
+      Array.from(select.options).forEach(opt => {
+        if (opt.value) {
+          productStockMap[opt.value] = opt.getAttribute('data-stock');
+        }
+      });
+    }
   });
-  
-  console.log('Invoice data map loaded:', invoiceDataMap);
-  
-  // Make rows expandable when clicked (except action cells)
+
+  // Set up product change listeners
+  if (productSelectAdd) {
+    productSelectAdd.addEventListener('change', function() {
+      const productId = this.value;
+      document.getElementById('addTotalStock').value = productStockMap[productId] || 0;
+      if (productId) {
+        fetchBatchesForProduct(productId, 'add');
+      } else {
+        document.getElementById('addBatchGroup').style.display = 'none';
+        document.getElementById('addBatchSelect').innerHTML = '<option value="">Select a batch</option>';
+      }
+    });
+  }
+
+  if (productSelectEdit) {
+    productSelectEdit.addEventListener('change', function() {
+      const productId = this.value;
+      document.getElementById('editTotalStock').value = productStockMap[productId] || 0;
+      if (productId) {
+        fetchBatchesForProduct(productId, 'edit');
+      } else {
+        document.getElementById('editBatchGroup').style.display = 'none';
+        document.getElementById('editBatchSelect').innerHTML = '<option value="">Select a batch</option>';
+      }
+    });
+  }
+
+  // Expandable rows
   const table = document.getElementById('ordersTable');
   const tbody = table ? table.getElementsByTagName('tbody')[0] : null;
-  
   if (tbody) {
     const rows = tbody.getElementsByTagName('tr');
-    
     for (let row of rows) {
-      // Skip if this is the "no orders found" row
-      if (row.cells.length <= 1) continue;
-      
-      // Add click event to all cells except the last one (actions)
+      if (row.cells.length <= 1) continue; // skip "no orders" row
       for (let i = 0; i < row.cells.length - 1; i++) {
         row.cells[i].addEventListener('click', function() {
           row.classList.toggle('expanded');
@@ -300,38 +328,129 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   }
-  
-  // Set up form submissions and other event listeners
-  setupFormHandlers();
-  
-  // Set up filter event listeners
+
+  // Set up filter listeners
   setupFilterHandlers();
+
+  // Set up form submissions
+  setupFormHandlers();
+
+  // Customer "other" toggle
+  document.getElementById('addCustomer').addEventListener('change', function() {
+    toggleOtherCustomer('add');
+  });
+  document.getElementById('editCustomer').addEventListener('change', function() {
+    toggleOtherCustomer('edit');
+  });
 });
 
-// Add this new function to handle edit button clicks
+// Fetch batches for a given product
+function fetchBatchesForProduct(productId, mode) {
+  fetch(`/get-batches-for-product/${productId}`)
+    .then(res => res.json())
+    .then(data => {
+      const batchSelect = document.getElementById(mode === 'add' ? 'addBatchSelect' : 'editBatchSelect');
+      const batchGroup = document.getElementById(mode === 'add' ? 'addBatchGroup' : 'editBatchGroup');
+      batchSelect.innerHTML = '<option value="">Select a batch</option>';
+      if (data.success && data.batches.length > 0) {
+        data.batches.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.batch;
+          opt.textContent = `${b.batch} (Remaining: ${b.remaining})`;
+          opt.setAttribute('data-remaining', b.remaining);
+          batchSelect.appendChild(opt);
+        });
+        batchGroup.style.display = 'block';
+      } else {
+        batchGroup.style.display = 'none';
+      }
+    })
+    .catch(err => console.error('Error fetching batches:', err));
+}
+
+// Add Order Modal
+function openAddOrderModal() {
+  document.getElementById('addOrderModal').style.display = 'block';
+  document.getElementById('addOrderForm').reset();
+  document.getElementById('addBatchGroup').style.display = 'none';
+  document.getElementById('addTotalStock').value = '';
+  document.getElementById('addOtherCustomerGroup').style.display = 'none';
+}
+
+function closeAddOrderModal() {
+  document.getElementById('addOrderModal').style.display = 'none';
+}
+
+// Edit Order Modal
 function editOrderRow(orderId) {
   const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
-  if (!row) {
-    console.error('Row not found for order ID:', orderId);
-    return;
-  }
-  
-  const productName = row.cells[3].textContent;
-  const invoiceNumber = row.getAttribute('data-invoice');
-  const quantity = parseInt(row.getAttribute('data-quantity'));
+  if (!row) return;
+
+  const productId = row.getAttribute('data-product-id');
+  const batchNumber = row.getAttribute('data-batch');
+  const invoice = row.getAttribute('data-invoice');
+  const quantity = row.getAttribute('data-quantity');
   const customer = row.getAttribute('data-customer');
-  const dosage = row.cells[4].textContent;
-  const unit = row.cells[7].textContent;
-  const quantityPerBox = parseInt(row.cells[6].textContent) || 1;
-  const sellingPrice = parseFloat(row.cells[8].textContent.replace('₱', '')) || 0; // Get selling price
-  
-  console.log("Opening edit modal with data:", {
-    orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice
+  const sellingPrice = parseFloat(row.cells[8].textContent.replace('₱', '')) || 0;
+
+  // Set basic fields
+  document.getElementById('editOrderId').value = orderId;
+  document.getElementById('editOrderInvoice').value = invoice;
+  document.getElementById('editOrderQuantity').value = quantity;
+  document.getElementById('editSellingPrice').value = sellingPrice.toFixed(2);
+
+  // Set product dropdown
+  const productSelect = document.getElementById('editProductSelect');
+  productSelect.value = productId;
+  // Trigger change to load batches and set total stock
+  const stock = productStockMap[productId] || 0;
+  document.getElementById('editTotalStock').value = stock;
+
+  // Fetch batches and then pre-select the correct batch
+  fetchBatchesForProduct(productId, 'edit').then(() => {
+    // After batches are loaded, select the batch that matches the order's batch
+    const batchSelect = document.getElementById('editBatchSelect');
+    for (let opt of batchSelect.options) {
+      if (opt.value === batchNumber) {
+        opt.selected = true;
+        break;
+      }
+    }
   });
-  
-  openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice);
+
+  // Set customer dropdown
+  const customerSelect = document.getElementById('editCustomer');
+  const otherGroup = document.getElementById('editOtherCustomerGroup');
+  const otherInput = document.getElementById('editOtherCustomerInput');
+  let found = false;
+  for (let opt of customerSelect.options) {
+    if (opt.textContent === customer) {
+      customerSelect.value = opt.value;
+      found = true;
+      otherGroup.style.display = 'none';
+      break;
+    }
+  }
+  if (!found) {
+    customerSelect.value = '__other__';
+    otherGroup.style.display = 'block';
+    otherInput.value = customer;
+  }
+
+  document.getElementById('editOrderModal').style.display = 'block';
 }
-  
+
+function closeEditOrderModal() {
+  document.getElementById('editOrderModal').style.display = 'none';
+}
+
+// Toggle other customer input
+function toggleOtherCustomer(mode) {
+  const customerSelect = document.getElementById(mode === 'add' ? 'addCustomer' : 'editCustomer');
+  const otherGroup = document.getElementById(mode === 'add' ? 'addOtherCustomerGroup' : 'editOtherCustomerGroup');
+  otherGroup.style.display = customerSelect.value === '__other__' ? 'block' : 'none';
+}
+
 // Filter functions
 function toggleOrderFilterOptions() {
   const filterBox = document.getElementById("orderFilterOptions");
@@ -339,661 +458,191 @@ function toggleOrderFilterOptions() {
 }
 
 function applyOrderFilters() {
-  console.log("applyOrderFilters called");
-  
-  // Check if table exists
-  const table = document.getElementById("ordersTable");
-  if (!table) {
-    console.error("Table not found!");
-    return;
-  }
-  
-  const tbody = table.querySelector("tbody");
-  if (!tbody) {
-    console.error("Table body not found!");
-    return;
-  }
-  
   const searchValue = document.getElementById("searchOrders")?.value?.toLowerCase() || '';
   const invoiceValue = document.getElementById("invoiceFilter")?.value?.toLowerCase() || '';
   const dateValue = document.getElementById("dateFilter")?.value || '';
+  const rows = document.querySelectorAll("#ordersTable tbody tr");
 
-  const rows = tbody.querySelectorAll("tr");
-  if (!rows.length) {
-    console.log("No rows found in table");
-    return;
-  }
-  
-  console.log(`Filtering ${rows.length} rows with search: "${searchValue}", invoice: "${invoiceValue}", date: "${dateValue}"`);
-  
   rows.forEach(row => {
-    if (!row) {
-      console.error("Found null row!");
-      return;
-    }
-    
-    // Skip the "No orders found" row if it exists
-    if (row.cells.length === 1 && row.cells[0].colSpan > 1) {
-      row.style.display = ""; // Always show the "no orders" message
-      return;
-    }
-    
-    try {
-      const text = row.textContent.toLowerCase();
-      const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || '';
-      const rowDate = row.getAttribute("data-date");
+    if (row.cells.length === 1 && row.cells[0].colSpan > 1) return; // keep "no orders" row
 
-      const matchesSearch = !searchValue || text.includes(searchValue);
-      const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
-      const matchesDate = !dateValue || rowDate === dateValue;
+    const text = row.textContent.toLowerCase();
+    const rowInvoice = row.getAttribute("data-invoice")?.toLowerCase() || '';
+    const rowDate = row.getAttribute("data-date");
 
-      row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
-    } catch (error) {
-      console.error("Error filtering row:", error, row);
-    }
+    const matchesSearch = !searchValue || text.includes(searchValue);
+    const matchesInvoice = !invoiceValue || rowInvoice.includes(invoiceValue);
+    const matchesDate = !dateValue || rowDate === dateValue;
+
+    row.style.display = matchesSearch && matchesInvoice && matchesDate ? "" : "none";
   });
 }
 
-// Setup filter event handlers
 function setupFilterHandlers() {
   const searchInput = document.getElementById('searchOrders');
   const invoiceFilter = document.getElementById('invoiceFilter');
   const dateFilter = document.getElementById('dateFilter');
   
-  if (searchInput) {
-    searchInput.addEventListener('keyup', applyOrderFilters);
-    console.log("Added search filter listener");
-  } else {
-    console.error("searchOrders input not found!");
-  }
-  
-  if (invoiceFilter) {
-    invoiceFilter.addEventListener('keyup', applyOrderFilters);
-    console.log("Added invoice filter listener");
-  } else {
-    console.error("invoiceFilter input not found!");
-  }
-  
-  if (dateFilter) {
-    dateFilter.addEventListener('change', applyOrderFilters);
-    console.log("Added date filter listener");
-  } else {
-    console.error("dateFilter input not found!");
-  }
+  if (searchInput) searchInput.addEventListener('keyup', applyOrderFilters);
+  if (invoiceFilter) invoiceFilter.addEventListener('keyup', applyOrderFilters);
+  if (dateFilter) dateFilter.addEventListener('change', applyOrderFilters);
 }
 
-// Add Order Modal functions
-function openAddOrderModal() { 
-  console.log("openAddOrderModal called");
-  document.getElementById('addOrderModal').style.display = 'block';
-  // Reset form
-  document.getElementById('addOrderForm').reset();
-  // Hide product selection group
-  document.getElementById('addProductSelectGroup').style.display = 'none';
-  // Clear fields
-  document.getElementById('addAvailableQty').value = '';
-  document.getElementById('addOrderQuantity').value = '';
-  document.getElementById('addCustomer').selectedIndex = 0;
-  document.getElementById('addOtherCustomerGroup').style.display = 'none';
-  // Clear product dropdown
-  document.getElementById('addProductSelect').innerHTML = '<option value="">Select a product</option>';
-  currentProductsForAdd = [];
-}
+// Form submissions
+function setupFormHandlers() {
+  // Add Order
+  const addForm = document.getElementById('addOrderForm');
+  addForm.addEventListener('submit', function(e) {
+    e.preventDefault();
 
-function closeAddOrderModal() { 
-  document.getElementById('addOrderModal').style.display = 'none';
-  document.getElementById('addOrderForm').reset();
-}
-
-// Edit Order Modal functions - Fixed function to properly handle all parameters
-function openEditOrderModal(orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice) {
-  console.log("openEditOrderModal called with:", {orderId, productName, invoiceNumber, quantity, customer, dosage, unit, quantityPerBox, sellingPrice});
-  
-  document.getElementById('editOrderId').value = orderId;
-  const editInvoiceInput = document.getElementById('editInvoiceNumber');
-  editInvoiceInput.value = invoiceNumber === 'N/A' ? '' : invoiceNumber;
-  
-  // Store old values
-  editInvoiceInput.setAttribute('data-old-invoice', invoiceNumber);
-  editInvoiceInput.setAttribute('data-old-quantity', quantity);
-  
-  document.getElementById('editOrderQuantity').value = quantity;
-  document.getElementById('editSellingPrice').value = sellingPrice.toFixed(2); // Set selling price
-  document.getElementById('editOrderId').setAttribute('data-quantity-per-box', quantityPerBox);
-  
-  // Set customer dropdown
-  const customerSelect = document.getElementById('editCustomer');
-  const otherGroup = document.getElementById('editOtherCustomerGroup');
-  const otherInput = document.getElementById('editOtherCustomerInput');
-  
-  // Try to find the customer in the options
-  let found = false;
-  for (let option of customerSelect.options) {
-    if (option.textContent === customer) {
-      customerSelect.value = option.value;
-      found = true;
-      otherGroup.style.display = 'none';
-      break;
+    const orderInvoice = document.getElementById('addOrderInvoice').value.trim();
+    const productId = document.getElementById('addProductSelect').value;
+    const batchSelect = document.getElementById('addBatchSelect');
+    const batchNumber = batchSelect.value;
+    const quantity = parseInt(document.getElementById('addOrderQuantity').value);
+    const sellingPrice = parseFloat(document.getElementById('addSellingPrice').value);
+    let customer = document.getElementById('addCustomer').value;
+    if (customer === '__other__') {
+      customer = document.getElementById('addOtherCustomerInput').value.trim();
+      if (!customer) {
+        alert('Please enter a customer name');
+        return;
+      }
     }
-  }
-  
-  // If customer not found, show "Other" input
-  if (!found) {
-    customerSelect.value = '__other__';
-    otherGroup.style.display = 'block';
-    otherInput.value = customer;
-  }
-  
-  // Fetch products for this invoice
-  fetchProductsForInvoice('edit', invoiceNumber, productName, dosage, unit);
-  
-  document.getElementById('editOrderModal').style.display = 'block';
-}
-  
-function closeEditOrderModal() { 
-  document.getElementById('editOrderModal').style.display = 'none';
-}
 
-// Toggle other customer input
-function toggleOtherCustomer(type) {
-  const customerSelect = document.getElementById(type === 'add' ? 'addCustomer' : 'editCustomer');
-  const otherGroup = document.getElementById(type === 'add' ? 'addOtherCustomerGroup' : 'editOtherCustomerGroup');
-  
-  if (customerSelect.value === '__other__') {
-    otherGroup.style.display = 'block';
-  } else {
-    otherGroup.style.display = 'none';
-  }
-}
-
-// Fetch products for a specific invoice number
-function fetchProductsForInvoice(type, presetInvoice = null, presetProductName = null, presetDosage = null, presetUnit = null) {
-  console.log(`fetchProductsForInvoice called for type: ${type}, presetInvoice: ${presetInvoice}`);
-  
-  let invoiceInput, productSelect, productSelectGroup, productsArray;
-  
-  if (type === 'add') {
-    invoiceInput = document.getElementById('addInvoiceNumber');
-    productSelect = document.getElementById('addProductSelect');
-    productSelectGroup = document.getElementById('addProductSelectGroup');
-    productsArray = currentProductsForAdd;
-  } else {
-    invoiceInput = document.getElementById('editInvoiceNumber');
-    productSelect = document.getElementById('editProductSelect');
-    productSelectGroup = document.getElementById('editProductSelectGroup');
-    productsArray = currentProductsForEdit;
-  }
-  
-  const invoiceNumber = presetInvoice || (invoiceInput ? invoiceInput.value.trim() : '');
-  
-  if (!invoiceNumber || invoiceNumber.length < 3) {
-    if (productSelectGroup) productSelectGroup.style.display = 'none';
-    if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
-    
-    if (type === 'add') {
-      const availableQty = document.getElementById('addAvailableQty');
-      if (availableQty) availableQty.value = '';
-    } else {
-      const availableQty = document.getElementById('editAvailableQty');
-      if (availableQty) availableQty.value = '';
+    if (!orderInvoice || !productId || !batchNumber || !quantity || !customer) {
+      alert('Please fill all fields correctly.');
+      return;
     }
-    return;
-  }
-  
-  // Fetch all products for this invoice number
-  fetch(`/get-products-by-invoice/${encodeURIComponent(invoiceNumber)}`)
+
+    const totalStock = parseInt(document.getElementById('addTotalStock').value);
+    if (quantity > totalStock) {
+      alert(`Order quantity cannot exceed total stock (${totalStock}).`);
+      return;
+    }
+
+    const selectedOption = batchSelect.selectedOptions[0];
+    const batchRemaining = parseInt(selectedOption.getAttribute('data-remaining'));
+    if (quantity > batchRemaining) {
+      alert(`Order quantity exceeds remaining quantity of this batch (${batchRemaining}).`);
+      return;
+    }
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    fetch('/add-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_invoice: orderInvoice,
+        product_id: productId,
+        batch_number: batchNumber,
+        order_quantity: quantity,
+        customer: customer,
+        selling_price: sellingPrice
+      })
+    })
     .then(res => res.json())
     .then(data => {
-      if (data.success && data.products && data.products.length > 0) {
-        // Clear previous products
-        productsArray.length = 0;
-        
-        // Populate the product dropdown
-        if (productSelect) {
-          productSelect.innerHTML = '<option value="">Select a product</option>';
-          
-          data.products.forEach(product => {
-            const option = document.createElement('option');
-            option.value = product.product_id;
-            // Format: "Product Name (Dosage) [Unit] - X pcs/box"
-            let displayText = product.product_name;
-            if (product.dosage) {
-              displayText += ` (${product.dosage})`;
-            }
-            if (product.unit_name) {
-              displayText += ` [${product.unit_name}]`;
-            }
-            displayText += ` - ${product.quantity_per_box || 1} pcs/box`;
-            option.textContent = displayText;
-            option.setAttribute('data-dosage', product.dosage || '');
-            option.setAttribute('data-unit', product.unit_name || '');
-            option.setAttribute('data-remaining', product.remaining_quantity);
-            option.setAttribute('data-batch', product.batch_number);
-            option.setAttribute('data-product-name', product.product_name);
-            option.setAttribute('data-quantity-per-box', product.quantity_per_box || 1);
-            productSelect.appendChild(option);
-            
-            // Store product data in array for later use
-            productsArray.push({
-              product_id: product.product_id,
-              product_name: product.product_name,
-              dosage: product.dosage,
-              unit_name: product.unit_name,
-              remaining_quantity: product.remaining_quantity,
-              batch_number: product.batch_number,
-              quantity_per_box: product.quantity_per_box || 1
-            });
-          });
-        }
-        
-        // Show the product selection dropdown
-        if (productSelectGroup) {
-          productSelectGroup.style.display = 'block';
-        }
-        
-        // If we have a preset product (for edit mode), select it
-        if (presetProductName && presetDosage !== undefined && presetUnit !== undefined && productSelect) {
-          // Try to find the matching product
-          let foundIndex = -1;
-          for (let i = 0; i < productsArray.length; i++) {
-            const product = productsArray[i];
-            if (product.product_name === presetProductName && 
-                product.dosage === presetDosage && 
-                product.unit_name === presetUnit) {
-              foundIndex = i;
-              break;
-            }
-          }
-          
-          if (foundIndex !== -1) {
-            productSelect.selectedIndex = foundIndex + 1; // +1 because of the "Select a product" option
-            updateAvailableQuantityForEdit();
-          }
-        }
-        
-        // Clear error styling
-        if (invoiceInput) invoiceInput.style.borderColor = '';
-      } else {
-        if (productSelectGroup) productSelectGroup.style.display = 'none';
-        if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
-        
-        if (type === 'add') {
-          const availableQty = document.getElementById('addAvailableQty');
-          if (availableQty) availableQty.value = '';
-        } else {
-          const availableQty = document.getElementById('editAvailableQty');
-          if (availableQty) availableQty.value = '';
-        }
-        
-        // Show error styling
-        if (invoiceInput) invoiceInput.style.borderColor = '#ff4444';
+      alert(data.message);
+      if (data.success) location.reload();
+      else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add';
       }
     })
     .catch(err => {
-      console.error('Error fetching products:', err);
-      if (productSelectGroup) productSelectGroup.style.display = 'none';
-      if (productSelect) productSelect.innerHTML = '<option value="">Select a product</option>';
-      
-      if (type === 'add') {
-        const availableQty = document.getElementById('addAvailableQty');
-        if (availableQty) availableQty.value = '';
-      } else {
-        const availableQty = document.getElementById('editAvailableQty');
-        if (availableQty) availableQty.value = '';
-      }
+      alert('Error: ' + err);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Add';
     });
-}
-
-// Update available quantity when a product is selected (Add modal)
-function updateAvailableQuantityForAdd() {
-  const productSelect = document.getElementById('addProductSelect');
-  const availableQty = document.getElementById('addAvailableQty');
-  
-  if (!productSelect || !availableQty) return;
-  
-  const selectedIndex = productSelect.selectedIndex;
-  
-  if (selectedIndex > 0) {
-    const selectedOption = productSelect.options[selectedIndex];
-    const remaining = selectedOption.getAttribute('data-remaining');
-    availableQty.value = remaining;
-  } else {
-    availableQty.value = '';
-  }
-}
-
-// Update available quantity when a product is selected (Edit modal)
-function updateAvailableQuantityForEdit() {
-  const productSelect = document.getElementById('editProductSelect');
-  const availableQty = document.getElementById('editAvailableQty');
-  const editInvoiceInput = document.getElementById('editInvoiceNumber');
-  
-  if (!productSelect || !availableQty || !editInvoiceInput) return;
-  
-  const selectedIndex = productSelect.selectedIndex;
-  const oldInvoice = editInvoiceInput.getAttribute('data-old-invoice');
-  const oldQuantity = parseInt(editInvoiceInput.getAttribute('data-old-quantity') || 0);
-  const currentInvoice = editInvoiceInput.value.trim();
-  
-  if (selectedIndex > 0) {
-    const selectedOption = productSelect.options[selectedIndex];
-    const remaining = parseInt(selectedOption.getAttribute('data-remaining'));
-    
-    let available = remaining;
-    
-    // If editing the same invoice, add back the old order quantity
-    if (currentInvoice === oldInvoice) {
-      available += oldQuantity;
-    }
-    
-    availableQty.value = available;
-  } else {
-    availableQty.value = '';
-  }
-}
-
-// Setup form handlers
-function setupFormHandlers() {
-  // Add Order Form Submission
-  const addOrderForm = document.getElementById('addOrderForm');
-  if (addOrderForm) {
-    addOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      console.log("Add order form submitted");
-      
-      let customerValue;
-      const customerSelect = document.getElementById('addCustomer');
-      
-      if (!customerSelect) {
-        alert('Customer select not found');
-        return;
-      }
-      
-      // If "Other" is selected, use the custom input value
-      if (customerSelect.value === '__other__') {
-        const otherCustomer = document.getElementById('addOtherCustomerInput')?.value;
-        if (!otherCustomer || otherCustomer.trim() === '') {
-          alert('Please enter a customer name');
-          return;
-        }
-        customerValue = otherCustomer;
-      } else {
-        customerValue = customerSelect.value;
-      }
-      
-       const invoiceNumber = document.getElementById('addInvoiceNumber')?.value.trim();
-      const productSelect = document.getElementById('addProductSelect');
-      const productId = productSelect?.value;
-      const quantity = parseInt(document.getElementById('addOrderQuantity')?.value || 0);
-      const sellingPrice = parseFloat(document.getElementById('addSellingPrice')?.value || 0);
-      
-      if(!invoiceNumber || !productId || isNaN(quantity) || quantity <= 0 || !customerValue) {
-        alert('Please fill all fields correctly.');
-        return;
-      }
-      
-      // Get batch number and product name from selected product
-      const selectedProduct = currentProductsForAdd.find(p => p.product_id == productId);
-      if (!selectedProduct) {
-        alert('Please select a valid product.');
-        return;
-      }
-      
-      // Validate quantity
-      const availableQtyElem = document.getElementById('addAvailableQty');
-      if (!availableQtyElem) {
-        alert('Available quantity field not found');
-        return;
-      }
-      
-      const availableQty = parseInt(availableQtyElem.value);
-      if (isNaN(availableQty)) {
-        alert('Cannot determine available quantity. Please select a product.');
-        return;
-      }
-      
-      if (quantity > availableQty) {
-        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
-        return;
-      }
-      
-      // Disable the submit button to prevent double submission
-      const submitButton = this.querySelector('button[type="submit"]');
-      if (!submitButton) {
-        alert('Submit button not found');
-        return;
-      }
-      
-      const originalText = submitButton.textContent;
-      submitButton.textContent = 'Processing...';
-      submitButton.disabled = true;
-      
-      fetch('/add-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          invoice_number: invoiceNumber, 
-          product_id: productId,
-          batch_number: selectedProduct.batch_number,
-          product_name: selectedProduct.product_name,
-          dosage: selectedProduct.dosage,
-          unit_name: selectedProduct.unit_name,
-          quantity_per_box: selectedProduct.quantity_per_box,
-          order_quantity: quantity, 
-          customer: customerValue,
-          selling_price: sellingPrice  // NEW: Include selling price
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-        if(data.success) {
-          location.reload();
-        } else {
-          submitButton.textContent = originalText;
-          submitButton.disabled = false;
-        }
-      })
-      .catch(err => {
-        console.error('Error:', err);
-        alert('Error: ' + err);
-        submitButton.textContent = originalText;
-        submitButton.disabled = false;
-      });
-      
-      return false;
-    });
-  } else {
-    console.error("Add order form not found!");
-  }
-
-  // Edit Order Form Submission
- const editOrderForm = document.getElementById('editOrderForm');
-  if (editOrderForm) {
-    editOrderForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      console.log("Edit order form submitted");
-      
-      let customerValue;
-      const customerSelect = document.getElementById('editCustomer');
-      
-      if (!customerSelect) {
-        alert('Customer select not found');
-        return;
-      }
-      
-      // If "Other" is selected, use the custom input value
-      if (customerSelect.value === '__other__') {
-        const otherCustomer = document.getElementById('editOtherCustomerInput')?.value;
-        if (!otherCustomer || otherCustomer.trim() === '') {
-          alert('Please enter a customer name');
-          return;
-        }
-        customerValue = otherCustomer;
-      } else {
-        customerValue = customerSelect.value;
-      }
-      
-      const orderId = document.getElementById('editOrderId')?.value;
-      const invoiceNumber = document.getElementById('editInvoiceNumber')?.value.trim();
-      const productSelect = document.getElementById('editProductSelect');
-      const productId = productSelect?.value;
-      const quantity = parseInt(document.getElementById('editOrderQuantity')?.value || 0);
-      const sellingPrice = parseFloat(document.getElementById('editSellingPrice')?.value || 0);
-
-      if (!orderId || !invoiceNumber || !productId || isNaN(quantity) || quantity <= 0) {
-        alert('Please fill all fields correctly.');
-        return;
-      }
-      
-      // Get batch number and product name from selected product
-      const selectedProduct = currentProductsForEdit.find(p => p.product_id == productId);
-      if (!selectedProduct) {
-        alert('Please select a valid product.');
-        return;
-      }
-      
-      // Validate quantity
-      const availableQtyElem = document.getElementById('editAvailableQty');
-      if (!availableQtyElem) {
-        alert('Available quantity field not found');
-        return;
-      }
-      
-      const availableQty = parseInt(availableQtyElem.value);
-      if (isNaN(availableQty)) {
-        alert('Cannot determine available quantity. Please select a product.');
-        return;
-      }
-      
-      if (quantity > availableQty) {
-        alert(`Order quantity cannot exceed available quantity (${availableQty}).`);
-        return;
-      }
-      
-      // Disable the submit button to prevent double submission
-      const submitButton = this.querySelector('button[type="submit"]');
-      if (!submitButton) {
-        alert('Submit button not found');
-        return;
-      }
-      
-      const originalText = submitButton.textContent;
-      submitButton.textContent = 'Processing...';
-      submitButton.disabled = true;
-      
-      fetch(`/edit-order/${orderId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          invoice_number: invoiceNumber, 
-          product_id: productId,
-          batch_number: selectedProduct.batch_number,
-          product_name: selectedProduct.product_name,
-          dosage: selectedProduct.dosage,
-          unit_name: selectedProduct.unit_name,
-          quantity_per_box: selectedProduct.quantity_per_box,
-          order_quantity: quantity, 
-          customer: customerValue,
-          selling_price: sellingPrice  // NEW: Include selling price
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-        if(data.success) {
-          location.reload();
-        } else {
-          submitButton.textContent = originalText;
-          submitButton.disabled = false;
-        }
-      })
-      .catch(err => {
-        console.error('Error:', err);
-        alert('Error: ' + err);
-        submitButton.textContent = originalText;
-        submitButton.disabled = false;
-      });
-      
-      return false;
-    });
-  } else {
-    console.error("Edit order form not found!");
-  }
-  
-  // Add event listeners for invoice inputs and product selects
-  const addInvoiceInput = document.getElementById('addInvoiceNumber');
-  const editInvoiceInput = document.getElementById('editInvoiceNumber');
-  const addProductSelect = document.getElementById('addProductSelect');
-  const editProductSelect = document.getElementById('editProductSelect');
-  const addCustomerSelect = document.getElementById('addCustomer');
-  const editCustomerSelect = document.getElementById('editCustomer');
-  
-  // Add invoice input listeners
-  [addInvoiceInput, editInvoiceInput].forEach(input => {
-    if (input) {
-      let timer;
-      input.addEventListener('input', function() {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          const type = this.id === 'addInvoiceNumber' ? 'add' : 'edit';
-          fetchProductsForInvoice(type);
-        }, 500);
-      });
-    }
   });
-  
-  // Add product select change listeners
-  if (addProductSelect) {
-    addProductSelect.addEventListener('change', updateAvailableQuantityForAdd);
-  }
-  
-  if (editProductSelect) {
-    editProductSelect.addEventListener('change', updateAvailableQuantityForEdit);
-  }
-  
-  // Add customer change listeners
-  if (addCustomerSelect) {
-    addCustomerSelect.addEventListener('change', function() {
-      toggleOtherCustomer('add');
+
+  // Edit Order
+  const editForm = document.getElementById('editOrderForm');
+  editForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const orderId = document.getElementById('editOrderId').value;
+    const orderInvoice = document.getElementById('editOrderInvoice').value.trim();
+    const productId = document.getElementById('editProductSelect').value;
+    const batchSelect = document.getElementById('editBatchSelect');
+    const batchNumber = batchSelect.value;
+    const quantity = parseInt(document.getElementById('editOrderQuantity').value);
+    const sellingPrice = parseFloat(document.getElementById('editSellingPrice').value);
+    let customer = document.getElementById('editCustomer').value;
+    if (customer === '__other__') {
+      customer = document.getElementById('editOtherCustomerInput').value.trim();
+      if (!customer) {
+        alert('Please enter a customer name');
+        return;
+      }
+    }
+
+    if (!orderId || !orderInvoice || !productId || !batchNumber || !quantity || !customer) {
+      alert('Please fill all fields correctly.');
+      return;
+    }
+
+    const totalStock = parseInt(document.getElementById('editTotalStock').value);
+    if (quantity > totalStock) {
+      alert(`Order quantity cannot exceed total stock (${totalStock}).`);
+      return;
+    }
+
+    const selectedOption = batchSelect.selectedOptions[0];
+    const batchRemaining = parseInt(selectedOption.getAttribute('data-remaining'));
+    if (quantity > batchRemaining) {
+      alert(`Order quantity exceeds remaining quantity of this batch (${batchRemaining}).`);
+      return;
+    }
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    fetch(`/edit-order/${orderId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_invoice: orderInvoice,
+        product_id: productId,
+        batch_number: batchNumber,
+        order_quantity: quantity,
+        customer: customer,
+        selling_price: sellingPrice
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+      if (data.success) location.reload();
+      else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save';
+      }
+    })
+    .catch(err => {
+      alert('Error: ' + err);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save';
     });
-  }
-  
-  if (editCustomerSelect) {
-    editCustomerSelect.addEventListener('change', function() {
-      toggleOtherCustomer('edit');
-    });
-  }
-  
-  console.log("Form handlers setup complete");
+  });
 }
 
 // Delete order
 function deleteOrder(orderId) {
-  if(confirm('Are you sure you want to delete this order?')) {
+  if (confirm('Are you sure you want to delete this order?')) {
     fetch(`/delete-order/${orderId}`, { method: 'POST' })
       .then(res => res.json())
       .then(data => {
         alert(data.message);
-        if(data.success) location.reload();
+        if (data.success) location.reload();
       })
-      .catch(err => {
-        console.error('Error:', err);
-        alert('Error deleting order: ' + err);
-      });
+      .catch(err => alert('Error deleting order: ' + err));
   }
 }
 </script>
 {% endblock %}
-
-
-
-
-
-
-
-
