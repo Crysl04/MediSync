@@ -344,9 +344,9 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Fetch batches for a given product
+// Fetch batches for a given product (returns promise)
 function fetchBatchesForProduct(productId, mode) {
-  fetch(`/get-batches-for-product/${productId}`)
+  return fetch(`/get-batches-for-product/${productId}`)
     .then(res => res.json())
     .then(data => {
       const batchSelect = document.getElementById(mode === 'add' ? 'addBatchSelect' : 'editBatchSelect');
@@ -381,7 +381,7 @@ function closeAddOrderModal() {
   document.getElementById('addOrderModal').style.display = 'none';
 }
 
-// Edit Order Modal
+//edit order modal
 function editOrderRow(orderId) {
   const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
   if (!row) return;
@@ -402,13 +402,11 @@ function editOrderRow(orderId) {
   // Set product dropdown
   const productSelect = document.getElementById('editProductSelect');
   productSelect.value = productId;
-  // Trigger change to load batches and set total stock
   const stock = productStockMap[productId] || 0;
   document.getElementById('editTotalStock').value = stock;
 
   // Fetch batches and then pre-select the correct batch
   fetchBatchesForProduct(productId, 'edit').then(() => {
-    // After batches are loaded, select the batch that matches the order's batch
     const batchSelect = document.getElementById('editBatchSelect');
     for (let opt of batchSelect.options) {
       if (opt.value === batchNumber) {
@@ -646,3 +644,4 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
+
