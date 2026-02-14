@@ -47,6 +47,7 @@
           <th>Product Name</th>
           <th>Dosage</th>
           <th>Quantity</th>
+          <th>Batch Number</th>          <!-- NEW COLUMN -->
           <th>Qty per Box</th>
           <th>Unit</th>
           <th>Selling Price</th>
@@ -70,6 +71,7 @@
               <td>{{ order[1] }}</td> <!-- Product Name -->
               <td>{{ order[8] if order[8] else '' }}</td> <!-- Dosage -->
               <td>{{ order[2] }}</td> <!-- Quantity -->
+              <td>{{ order[3] }}</td> <!-- Batch Number (NEW) -->
               <td>{{ order[9] if order[9] else '1' }}</td> <!-- Quantity per Box -->
               <td>{{ order[7] if order[7] else 'N/A' }}</td> <!-- Unit -->
               <td>₱{{ "%.2f"|format(order[10]) if order[10] else '0.00' }}</td> <!-- Selling Price -->
@@ -81,7 +83,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="10" style="text-align: center;">No orders found</td> 
+            <td colspan="11" style="text-align: center;">No orders found</td> <!-- Updated colspan -->
           </tr>
         {% endif %}
       </tbody>
@@ -135,63 +137,75 @@
   }
 </style>
 
-<!-- Add Order Modal -->
+<!-- Datalist for product search -->
+<datalist id="productsDatalist">
+  {% for prod in products %}
+    <option value="{{ prod[1] }}{% if prod[2] %} - {{ prod[2] }}{% endif %} [{{ prod[3] or 'N/A' }}]" 
+            data-id="{{ prod[0] }}" 
+            data-stock="{{ prod[4] }}"
+            data-dosage="{{ prod[2] or '' }}"
+            data-unit="{{ prod[3] or '' }}">
+  {% endfor %}
+</datalist>
+
+<!-- Add Order Modal (two-column) -->
 <div id="addOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
+  <div style="background:#fff; margin:5% auto; padding:28px 32px; border-radius:10px; width:760px; max-width:95vw; position:relative;">
     <h2>Add Order</h2>
     <form id="addOrderForm">
-      <label>Order Invoice Number:</label><br>
-      <input type="text" name="order_invoice" id="addOrderInvoice" required>
-      <br><br>
-
-      <label>Product:</label><br>
-      <select name="product_id" id="addProductSelect" required>
-        <option value="">Select a product</option>
-        {% for prod in products %}
-          <option value="{{ prod[0] }}" 
-                  data-stock="{{ prod[4] }}"
-                  data-dosage="{{ prod[2] or '' }}"
-                  data-unit="{{ prod[3] or '' }}">
-            {{ prod[1] }}{% if prod[2] %} ({{ prod[2] }}){% endif %} [{{ prod[3] or 'N/A' }}]
-          </option>
-        {% endfor %}
-      </select>
-      <br><br>
-
-      <div id="addBatchGroup" style="display:none;">
-        <label>Batch Number:</label><br>
-        <select name="batch_number" id="addBatchSelect" required>
-          <option value="">Select a batch</option>
-        </select>
-        <br><br>
+      <input type="hidden" name="product_id" id="addProductIdInput">
+    
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        
+        <!-- LEFT COLUMN -->
+        <div>
+          <h4>Order Details</h4>
+    
+          <label>Order Invoice Number:</label>
+          <input type="text" name="order_invoice" id="addOrderInvoice" required>
+    
+          <label>Product:</label>
+          <input type="text" id="addProductSearch" list="productsDatalist"
+                 placeholder="Type to search products..." required>
+    
+          <div id="addBatchGroup" style="display:none;">
+            <label>Batch Number:</label>
+            <select name="batch_number" id="addBatchSelect" required>
+              <option value="">Select a batch</option>
+            </select>
+          </div>
+    
+          <label>Order Quantity:</label>
+          <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required>
+        </div>
+    
+        <!-- RIGHT COLUMN -->
+        <div>
+          <h4>Pricing & Customer</h4>
+    
+          <label>Available Stock (total):</label>
+          <input type="text" id="addTotalStock" readonly>
+    
+          <label>Selling Price (₱):</label>
+          <input type="number" name="selling_price" id="addSellingPrice" min="0" step="0.01" value="0.00">
+    
+          <label>Customer:</label>
+          <select name="customer" id="addCustomer" required>
+            <option value="">Select Customer</option>
+            {% for customer in customers %}
+              <option value="{{ customer }}">{{ customer }}</option>
+            {% endfor %}
+            <option value="__other__">Other (enter below)</option>
+          </select>
+          <div id="addOtherCustomerGroup" style="display:none; margin-top:5px;">
+            <input type="text" id="addOtherCustomerInput" placeholder="Enter customer name">
+          </div>
+        </div>
+    
       </div>
-
-      <label>Available Stock (total):</label><br>
-      <input type="text" id="addTotalStock" readonly>
-      <br><br>
-
-      <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="addOrderQuantity" min="1" required>
-      <br><br>
-
-      <label>Selling Price (₱):</label><br>
-      <input type="number" name="selling_price" id="addSellingPrice" min="0" step="0.01" value="0.00">
-      <br><br>
-
-      <label>Customer:</label><br>
-      <select name="customer" id="addCustomer" required>
-        <option value="">Select Customer</option>
-        {% for customer in customers %}
-          <option value="{{ customer }}">{{ customer }}</option>
-        {% endfor %}
-        <option value="__other__">Other (enter below)</option>
-      </select>
-      <div id="addOtherCustomerGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="addOtherCustomerInput" placeholder="Enter customer name">
-      </div>
-      <br><br>
-
-      <div style="text-align:right;">
+    
+      <!-- BUTTONS -->
+      <div style="text-align:right; margin-top:20px;">
         <button type="button" onclick="closeAddOrderModal()">Cancel</button>
         <button type="submit">Add</button>
       </div>
@@ -199,65 +213,65 @@
   </div>
 </div>
 
-<!-- Edit Order Modal -->
+<!-- Edit Order Modal (two-column) -->
 <div id="editOrderModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4);">
-  <div style="background:#fff; margin:5% auto; padding:20px; border-radius:8px; width:400px; position:relative;">
+  <div style="background:#fff; margin:5% auto; padding:28px 32px; border-radius:10px; width:760px; max-width:95vw; position:relative;">
     <h2>Edit Order</h2>
     <form id="editOrderForm">
       <input type="hidden" name="order_id" id="editOrderId">
-
-      <label>Order Invoice Number:</label><br>
-      <input type="text" name="order_invoice" id="editOrderInvoice" required>
-      <br><br>
-
-      <label>Product:</label><br>
-      <select name="product_id" id="editProductSelect" required>
-        <option value="">Select a product</option>
-        {% for prod in products %}
-          <option value="{{ prod[0] }}" 
-                  data-stock="{{ prod[4] }}"
-                  data-dosage="{{ prod[2] or '' }}"
-                  data-unit="{{ prod[3] or '' }}">
-            {{ prod[1] }}{% if prod[2] %} ({{ prod[2] }}){% endif %} [{{ prod[3] or 'N/A' }}]
-          </option>
-        {% endfor %}
-      </select>
-      <br><br>
-
-      <div id="editBatchGroup" style="display:none;">
-        <label>Batch Number:</label><br>
-        <select name="batch_number" id="editBatchSelect" required>
-          <option value="">Select a batch</option>
-        </select>
-        <br><br>
+      <input type="hidden" name="product_id" id="editProductIdInput">
+    
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        
+        <!-- LEFT COLUMN -->
+        <div>
+          <h4>Order Details</h4>
+    
+          <label>Order Invoice Number:</label>
+          <input type="text" name="order_invoice" id="editOrderInvoice" required>
+    
+          <label>Product:</label>
+          <input type="text" id="editProductSearch" list="productsDatalist"
+                 placeholder="Type to search products..." required>
+    
+          <div id="editBatchGroup" style="display:none;">
+            <label>Batch Number:</label>
+            <select name="batch_number" id="editBatchSelect" required>
+              <option value="">Select a batch</option>
+            </select>
+          </div>
+    
+          <label>Order Quantity:</label>
+          <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required>
+        </div>
+    
+        <!-- RIGHT COLUMN -->
+        <div>
+          <h4>Pricing & Customer</h4>
+    
+          <label>Available Stock (total):</label>
+          <input type="text" id="editTotalStock" readonly>
+    
+          <label>Selling Price (₱):</label>
+          <input type="number" name="selling_price" id="editSellingPrice" min="0" step="0.01" value="0.00">
+    
+          <label>Customer:</label>
+          <select name="customer" id="editCustomer" required>
+            <option value="">Select Customer</option>
+            {% for customer in customers %}
+              <option value="{{ customer }}">{{ customer }}</option>
+            {% endfor %}
+            <option value="__other__">Other (enter below)</option>
+          </select>
+          <div id="editOtherCustomerGroup" style="display:none; margin-top:5px;">
+            <input type="text" id="editOtherCustomerInput" placeholder="Enter customer name">
+          </div>
+        </div>
+    
       </div>
-
-      <label>Available Stock (total):</label><br>
-      <input type="text" id="editTotalStock" readonly>
-      <br><br>
-
-      <label>Order Quantity:</label><br>
-      <input type="number" name="order_quantity" id="editOrderQuantity" min="1" required>
-      <br><br>
-
-      <label>Selling Price (₱):</label><br>
-      <input type="number" name="selling_price" id="editSellingPrice" min="0" step="0.01" value="0.00">
-      <br><br>
-
-      <label>Customer:</label><br>
-      <select name="customer" id="editCustomer" required>
-        <option value="">Select Customer</option>
-        {% for customer in customers %}
-          <option value="{{ customer }}">{{ customer }}</option>
-        {% endfor %}
-        <option value="__other__">Other (enter below)</option>
-      </select>
-      <div id="editOtherCustomerGroup" style="display:none; margin-top:5px;">
-        <input type="text" id="editOtherCustomerInput" placeholder="Enter customer name">
-      </div>
-      <br><br>
-
-      <div style="text-align:right;">
+    
+      <!-- BUTTONS -->
+      <div style="text-align:right; margin-top:20px;">
         <button type="button" onclick="closeEditOrderModal()">Cancel</button>
         <button type="submit">Save</button>
       </div>
@@ -267,67 +281,32 @@
 
 <script>
 // Global variables
-let productStockMap = {};
+let productDataMap = {};        // search text -> {id, stock, dosage, unit}
+let productStockMap = {};       // id -> stock (for quick lookup)
+let productDetailsMap = {};     // id -> {dosage, unit} (for batch fetching)
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   console.log("DOM Content Loaded - Initializing...");
 
-  // Build product stock map from the product select options (both modals share same products)
-  const productSelectAdd = document.getElementById('addProductSelect');
-  const productSelectEdit = document.getElementById('editProductSelect');
-  
-  [productSelectAdd, productSelectEdit].forEach(select => {
-    if (select) {
-      Array.from(select.options).forEach(opt => {
-        if (opt.value) {
-          productStockMap[opt.value] = opt.getAttribute('data-stock');
-        }
-      });
-    }
-  });
-
-  // Set up product change listeners
-  if (productSelectAdd) {
-    productSelectAdd.addEventListener('change', function() {
-      const productId = this.value;
-      document.getElementById('addTotalStock').value = productStockMap[productId] || 0;
-      if (productId) {
-        fetchBatchesForProduct(productId, 'add');
-      } else {
-        document.getElementById('addBatchGroup').style.display = 'none';
-        document.getElementById('addBatchSelect').innerHTML = '<option value="">Select a batch</option>';
-      }
+  // Build product maps from datalist options
+  const datalist = document.getElementById('productsDatalist');
+  if (datalist) {
+    Array.from(datalist.options).forEach(opt => {
+      const id = opt.getAttribute('data-id');
+      const stock = opt.getAttribute('data-stock');
+      const dosage = opt.getAttribute('data-dosage');
+      const unit = opt.getAttribute('data-unit');
+      const searchText = opt.value; // the displayed text
+      productDataMap[searchText] = { id, stock, dosage, unit };
+      productStockMap[id] = stock;
+      productDetailsMap[id] = { dosage, unit };
     });
   }
 
-  if (productSelectEdit) {
-    productSelectEdit.addEventListener('change', function() {
-      const productId = this.value;
-      document.getElementById('editTotalStock').value = productStockMap[productId] || 0;
-      if (productId) {
-        fetchBatchesForProduct(productId, 'edit');
-      } else {
-        document.getElementById('editBatchGroup').style.display = 'none';
-        document.getElementById('editBatchSelect').innerHTML = '<option value="">Select a batch</option>';
-      }
-    });
-  }
-
-  // Expandable rows
-  const table = document.getElementById('ordersTable');
-  const tbody = table ? table.getElementsByTagName('tbody')[0] : null;
-  if (tbody) {
-    const rows = tbody.getElementsByTagName('tr');
-    for (let row of rows) {
-      if (row.cells.length <= 1) continue; // skip "no orders" row
-      for (let i = 0; i < row.cells.length - 1; i++) {
-        row.cells[i].addEventListener('click', function() {
-          row.classList.toggle('expanded');
-        });
-      }
-    }
-  }
+  // Set up product search listeners
+  setupProductSearch('add');
+  setupProductSearch('edit');
 
   // Set up filter listeners
   setupFilterHandlers();
@@ -343,6 +322,35 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleOtherCustomer('edit');
   });
 });
+
+function setupProductSearch(mode) {
+  const searchInput = document.getElementById(mode === 'add' ? 'addProductSearch' : 'editProductSearch');
+  const productIdInput = document.getElementById(mode === 'add' ? 'addProductIdInput' : 'editProductIdInput');
+  const totalStockInput = document.getElementById(mode === 'add' ? 'addTotalStock' : 'editTotalStock');
+
+  searchInput.addEventListener('input', function() {
+    // Clear product ID if user types
+    productIdInput.value = '';
+    totalStockInput.value = '';
+    // Hide batch group
+    const batchGroup = document.getElementById(mode === 'add' ? 'addBatchGroup' : 'editBatchGroup');
+    batchGroup.style.display = 'none';
+  });
+
+  searchInput.addEventListener('change', function() {
+    const selectedText = this.value;
+    const product = productDataMap[selectedText];
+    if (product) {
+      productIdInput.value = product.id;
+      totalStockInput.value = product.stock || 0;
+      // Fetch batches for this product
+      fetchBatchesForProduct(product.id, mode);
+    } else {
+      productIdInput.value = '';
+      totalStockInput.value = '';
+    }
+  });
+}
 
 // Fetch batches for a given product (returns promise)
 function fetchBatchesForProduct(productId, mode) {
@@ -372,8 +380,9 @@ function fetchBatchesForProduct(productId, mode) {
 function openAddOrderModal() {
   document.getElementById('addOrderModal').style.display = 'block';
   document.getElementById('addOrderForm').reset();
-  document.getElementById('addBatchGroup').style.display = 'none';
+  document.getElementById('addProductIdInput').value = '';
   document.getElementById('addTotalStock').value = '';
+  document.getElementById('addBatchGroup').style.display = 'none';
   document.getElementById('addOtherCustomerGroup').style.display = 'none';
 }
 
@@ -381,7 +390,7 @@ function closeAddOrderModal() {
   document.getElementById('addOrderModal').style.display = 'none';
 }
 
-//edit order modal
+// Edit Order Modal
 function editOrderRow(orderId) {
   const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
   if (!row) return;
@@ -391,7 +400,7 @@ function editOrderRow(orderId) {
   const invoice = row.getAttribute('data-invoice');
   const quantity = row.getAttribute('data-quantity');
   const customer = row.getAttribute('data-customer');
-  const sellingPrice = parseFloat(row.cells[8].textContent.replace('₱', '')) || 0;
+  const sellingPrice = parseFloat(row.cells[9].textContent.replace('₱', '')) || 0; // Index adjusted for new column
 
   // Set basic fields
   document.getElementById('editOrderId').value = orderId;
@@ -399,9 +408,18 @@ function editOrderRow(orderId) {
   document.getElementById('editOrderQuantity').value = quantity;
   document.getElementById('editSellingPrice').value = sellingPrice.toFixed(2);
 
-  // Set product dropdown
-  const productSelect = document.getElementById('editProductSelect');
-  productSelect.value = productId;
+  // Set product search field
+  const productDetails = productDetailsMap[productId] || { dosage: '', unit: '' };
+  const productSelect = document.getElementById('editProductSearch');
+  // Try to reconstruct the search text from product data
+  const productOption = Object.keys(productDataMap).find(key => productDataMap[key].id == productId);
+  if (productOption) {
+    productSelect.value = productOption;
+  } else {
+    // Fallback: use product name from row
+    productSelect.value = row.cells[3].textContent; // product name column
+  }
+  document.getElementById('editProductIdInput').value = productId;
   const stock = productStockMap[productId] || 0;
   document.getElementById('editTotalStock').value = stock;
 
@@ -494,7 +512,7 @@ function setupFormHandlers() {
     e.preventDefault();
 
     const orderInvoice = document.getElementById('addOrderInvoice').value.trim();
-    const productId = document.getElementById('addProductSelect').value;
+    const productId = document.getElementById('addProductIdInput').value;
     const batchSelect = document.getElementById('addBatchSelect');
     const batchNumber = batchSelect.value;
     const quantity = parseInt(document.getElementById('addOrderQuantity').value);
@@ -565,7 +583,7 @@ function setupFormHandlers() {
 
     const orderId = document.getElementById('editOrderId').value;
     const orderInvoice = document.getElementById('editOrderInvoice').value.trim();
-    const productId = document.getElementById('editProductSelect').value;
+    const productId = document.getElementById('editProductIdInput').value;
     const batchSelect = document.getElementById('editBatchSelect');
     const batchNumber = batchSelect.value;
     const quantity = parseInt(document.getElementById('editOrderQuantity').value);
@@ -644,4 +662,3 @@ function deleteOrder(orderId) {
 }
 </script>
 {% endblock %}
-
