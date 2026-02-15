@@ -296,28 +296,26 @@ document.addEventListener('DOMContentLoaded', () => {
     let current = null;
 
     function show(notif) {
-        if (showing) return;
-
-        current = notif;
-        showing = true;
-
-        // Remove hidden class to ensure it's visible
-        popup.classList.remove('hidden');
-        
-        messageEl.textContent = notif.message;
-        document.getElementById('notification-title').textContent = getAlertTitle(notif.type);
-        
-        // Use setTimeout to ensure the display is set before adding show class
-        setTimeout(() => {
-            popup.classList.add('show');
-        }, 10);
-
-        // mark as "last shown" for interval check
-        localStorage.setItem(`notif_${notif.id}`, Date.now());
-
-        // update server last_notified timestamp
-        fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
-    }
+      if (showing) return;
+  
+      current = notif;
+      showing = true;
+  
+      popup.classList.remove('hidden');
+      messageEl.textContent = notif.message;
+      document.getElementById('notification-title').textContent = getAlertTitle(notif.type);
+  
+      // FIX: Reset the ignore button to its default state
+      ignoreBtn.textContent = 'Ignore Notification';
+      ignoreBtn.disabled = false;
+  
+      setTimeout(() => {
+          popup.classList.add('show');
+      }, 10);
+  
+      localStorage.setItem(`notif_${notif.id}`, Date.now());
+      fetch(`/touch-notification/${notif.id}`, { method: 'POST' });
+  }
 
     function hide() {
         // Remove the show class to trigger the fade-out animation
@@ -392,37 +390,35 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     ignoreBtn.onclick = async () => {
-        // Add visual feedback
-        addButtonFeedback(ignoreBtn);
-        
-        if (!current) return;
-
-        // Optional: Show a brief loading state on the button
-        const originalText = ignoreBtn.textContent;
-        ignoreBtn.textContent = 'Ignoring...';
-        ignoreBtn.disabled = true;
-
-        try {
-            await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
-            await markAsRead(current.id);
-            
-            // Show success feedback
-            ignoreBtn.textContent = 'Ignored!';
-            setTimeout(() => {
-                hide();
-            }, 500);
-        } catch (error) {
-            // Reset button if error
-            ignoreBtn.textContent = originalText;
-            ignoreBtn.disabled = false;
-            console.error('Error ignoring notification:', error);
-        }
-    };
+      addButtonFeedback(ignoreBtn);
+  
+      if (!current) return;
+  
+      // Optional: provide brief feedback
+      const originalText = ignoreBtn.textContent;
+      ignoreBtn.textContent = 'Ignoring...';
+      ignoreBtn.disabled = true;
+  
+      try {
+          await fetch(`/ignore-notification/${current.id}`, { method: 'POST' });
+          await markAsRead(current.id);
+  
+          // Hide immediately after success (with a tiny delay to show the "Ignoring..." feedback)
+          setTimeout(() => {
+              hide();
+          }, 200);  // 200ms is enough to see the feedback
+      } catch (error) {
+          ignoreBtn.textContent = originalText;
+          ignoreBtn.disabled = false;
+          console.error('Error ignoring notification:', error);
+      }
+  };
 
     fetchNotifications();
     setInterval(fetchNotifications, 7200000);
 });
 </script>
+
 
 
 
