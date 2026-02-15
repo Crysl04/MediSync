@@ -247,36 +247,30 @@ let productDataMap = {};
 
 // Initialize the product data map when page loads
 document.addEventListener('DOMContentLoaded', function() {
-  // Get all options from the datalist
-  const datalist = document.getElementById('productsList');
-  const options = datalist ? datalist.querySelectorAll('option') : [];
-  
-  // Populate the product data map
-  options.forEach(option => {
-    productDataMap[option.value] = {
-      id: option.getAttribute('data-id'),
-      dosage: option.getAttribute('data-dosage'),
-      unit: option.getAttribute('data-unit')
-    };
-  });
-  
-  console.log('Product data map loaded:', productDataMap);
-  
-  const table = document.getElementById('purchasesTable');
-  const cells = table.getElementsByTagName('td');
-  
-  for (let cell of cells) {
-    cell.addEventListener('click', function() {
-      const allCells = table.getElementsByTagName('td');
-      for (let c of allCells) {
-        c.classList.remove('expanded');
+  const productSearch = document.getElementById('productSearch');
+
+  if (productSearch) {
+    // When user types, clear the hidden ID
+    productSearch.addEventListener('input', function() {
+      document.getElementById('productIdInput').value = '';
+      this.classList.remove('product-invalid');
+    });
+
+    // When user selects from dropdown (or leaves the field), validate
+    productSearch.addEventListener('change', function() {
+      updatePurchaseProductInfo();
+    });
+
+    // Optional: also validate on blur in case change didn't fire
+    productSearch.addEventListener('blur', function() {
+      // Only validate if the hidden ID is empty and there's a value
+      if (!document.getElementById('productIdInput').value && this.value.trim()) {
+        updatePurchaseProductInfo();
       }
-      
-      this.classList.toggle('expanded');
     });
   }
 });
-
+  
 let isSubmitting = false;
 
 document.getElementById("purchaseForm").addEventListener("submit", function(e) {
@@ -495,29 +489,33 @@ function editPurchase(id) {
   document.getElementById("purchaseModal").style.display = "block";
 }
   
+// New function to set product ID directly from datalist options
 function updatePurchaseProductInfo() {
   const productSearch = document.getElementById('productSearch');
   const productIdInput = document.getElementById('productIdInput');
   const searchValue = productSearch.value.trim();
-  
-  // Clear previous product ID
+
+  // Clear previous state
   productIdInput.value = '';
-  
-  // Remove invalid class if present
   productSearch.classList.remove('product-invalid');
-  
-  if (!searchValue) {
-    return;
+
+  if (!searchValue) return;
+
+  // Get the datalist element
+  const datalist = document.getElementById('productsList');
+  if (!datalist) return;
+
+  // Look for an option whose value exactly matches the current input
+  const options = datalist.options;
+  for (let opt of options) {
+    if (opt.value === searchValue) {
+      productIdInput.value = opt.getAttribute('data-id');
+      return; // Found – exit
+    }
   }
-  
-  // Check if the product exists in our map (exact match)
-  if (productDataMap[searchValue]) {
-    // Exact match found
-    productIdInput.value = productDataMap[searchValue].id;
-  } else {
-    // Don't auto-select - wait for user to choose from dropdown
-    productSearch.classList.add('product-invalid');
-  }
+
+  // No exact match – mark as invalid
+  productSearch.classList.add('product-invalid');
 }
 
 function deletePurchase(id) {
@@ -629,6 +627,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
+
 
 
 
