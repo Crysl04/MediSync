@@ -62,7 +62,7 @@
         <th>Quantity</th>
         <th>Qty/Box</th>
         <th>Unit</th>
-        <th>Costing Price</th> <!-- NEW COLUMN -->
+        <th>Costing Price</th>
         <th>Expiry Date</th>
         <th>Status</th>
         <th>Actions</th>
@@ -269,6 +269,28 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  // === ADDED: Make rows expandable ===
+  try {
+    const table = document.getElementById('purchasesTable');
+    if (table) {
+      const tbody = table.querySelector('tbody');
+      if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+          if (row.cells.length <= 1) return; // skip placeholder row
+          for (let i = 0; i < row.cells.length - 1; i++) {
+            row.cells[i].addEventListener('click', function() {
+              row.classList.toggle('expanded');
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Expandable rows error (purchases):', e);
+  }
+  // === END OF ADDED CODE ===
 });
   
 let isSubmitting = false;
@@ -627,11 +649,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 {% endblock %}
-
-
-
-
-
-
-
-
