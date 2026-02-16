@@ -322,6 +322,28 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('editCustomer').addEventListener('change', function() {
     toggleOtherCustomer('edit');
   });
+
+  // === ADDED: Make rows expandable ===
+  try {
+    const table = document.getElementById('ordersTable');
+    if (table) {
+      const tbody = table.querySelector('tbody');
+      if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+          if (row.cells.length <= 1) return; // skip placeholder row
+          for (let i = 0; i < row.cells.length - 1; i++) {
+            row.cells[i].addEventListener('click', function() {
+              row.classList.toggle('expanded');
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Expandable rows error (orders):', e);
+  }
+  // === END OF ADDED CODE ===
 });
 
 function setupProductSearch(mode) {
