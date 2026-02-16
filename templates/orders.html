@@ -47,7 +47,7 @@
           <th>Product Name</th>
           <th>Dosage</th>
           <th>Quantity</th>
-          <th>Batch Number</th>          <!-- NEW COLUMN -->
+          <th>Batch Number</th>
           <th>Qty per Box</th>
           <th>Unit</th>
           <th>Selling Price</th>
@@ -102,11 +102,26 @@
     padding: 6px 8px;
   }
   
+  /* Default cell styling with truncation */
   .orders-table td {
     font-size: 13px;
     padding: 6px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px; /* Adjust as needed */
   }
   
+  /* Expanded cell – show full content */
+  .orders-table td.expanded {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    background-color: #f8f9fa; /* Optional highlight */
+  }
+  
+  /* Make action buttons smaller */
   td button {
     margin: 1px;
     padding: 3px 6px;
@@ -125,12 +140,7 @@
     color: white;
   }
   
-  .orders-table tr.expanded td {
-    white-space: normal;
-    overflow: visible;
-    max-width: none;
-  }
-  
+  /* Keep action buttons always visible and not expandable */
   .orders-table td:last-child {
     white-space: nowrap;
     max-width: none;
@@ -323,27 +333,29 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleOtherCustomer('edit');
   });
 
-  // === ADDED: Make rows expandable ===
+  // === EXPANDABLE ROWS (like products page) ===
   try {
     const table = document.getElementById('ordersTable');
     if (table) {
-      const tbody = table.querySelector('tbody');
-      if (tbody) {
-        const rows = tbody.querySelectorAll('tr');
-        rows.forEach(row => {
-          if (row.cells.length <= 1) return; // skip placeholder row
-          for (let i = 0; i < row.cells.length - 1; i++) {
-            row.cells[i].addEventListener('click', function() {
-              row.classList.toggle('expanded');
-            });
+      const cells = table.getElementsByTagName('td');
+      for (let cell of cells) {
+        // Skip action column cells (last column)
+        if (cell.cellIndex === table.rows[0].cells.length - 1) continue;
+        
+        cell.addEventListener('click', function() {
+          // Remove expanded class from all cells
+          for (let c of cells) {
+            c.classList.remove('expanded');
           }
+          // Toggle on the clicked cell
+          this.classList.toggle('expanded');
         });
       }
     }
   } catch (e) {
     console.error('Expandable rows error (orders):', e);
   }
-  // === END OF ADDED CODE ===
+  // === END OF EXPANDABLE ROWS ===
 });
 
 function setupProductSearch(mode) {
